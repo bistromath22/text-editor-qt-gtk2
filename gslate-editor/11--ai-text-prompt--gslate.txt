@@ -1,0 +1,2104 @@
+# MASTER AI DEVELOPMENT PROMPT
+# BUILD THE “gSlate Editor” DESKTOP TEXT EDITOR FROM SCRATCH
+
+---
+
+## 1. ROLE AND OVERALL OBJECTIVE
+
+Act as a senior C language and GTK4 desktop-application architect and developer.
+
+Design and implement a complete, maintainable rewrite of the Slate desktop text editor, using **pure C and GTK4**, targeting Ubuntu 26.04 LTS.
+
+The new project will be named **gSlate Editor**.
+
+The goal is to recreate the useful identity, functionality, visual appearance, configuration system, and editing behaviour of the existing Slate Qt application while rebuilding its architecture around GTK4, GLib, GIO, and the native GTK text-editing framework.
+
+This must be a genuine native Linux desktop application.
+
+Do not create:
+- A web application.
+- An Electron application.
+- A browser-based editor.
+- A Qt application.
+- A C++ application.
+- A mockup or demonstration-only interface.
+
+The deliverable must be a complete, compilable, functional C application, with all necessary source files, build instructions, configuration files, desktop integration, and automated tests.
+
+Do not leave core functionality as TODOs, pseudocode, or unimplemented stubs.
+
+Preserve the small, lightweight nature of Slate. Prioritize editing correctness, startup speed, maintainability, and reliable GTK4 rendering over unnecessary features.
+
+Where the original Qt design refers to Qt-specific functionality, implement the equivalent using appropriate GTK4 APIs rather than attempting a literal Qt-to-GTK translation.
+
+When a requirement cannot be reproduced exactly because GTK4 has a different architecture, implement the closest reliable native GTK4 solution, explain the difference, and document the decision.
+
+---
+
+## 2. PROJECT IDENTITY AND PRODUCT DESCRIPTION
+
+Project name: gSlate Editor
+
+Application display name: gSlate Editor
+
+Application/binary name: gslate
+
+Product type: Lightweight native desktop plain-text editor.
+
+Primary platform: Ubuntu 26.04 LTS.
+
+Programming language: C17.
+
+GUI framework: GTK4.
+
+Core libraries:
+- GTK4
+- GLib
+- GObject
+- GIO
+- GDK4
+- Pango
+- Cairo, only where needed for custom drawing.
+
+Build system: Meson.
+
+Build backend: Ninja.
+
+Dependency discovery: pkg-config.
+
+The application should feel like a traditional, uncluttered desktop text editor.
+
+Its intended visual identity is a clean, dark, keyboard-friendly text-editing surface, inspired by the simplicity of classic Windows Notepad and the original Slate application.
+
+The editor should be useful for:
+- Ordinary text files.
+- Configuration files.
+- Shell scripts.
+- C source files.
+- Documentation.
+- Notes.
+- Other UTF-8 plain-text documents.
+
+It is not an IDE or a word processor.
+
+### Application scope
+
+The application must have:
+
+1. One main application window.
+2. Exactly one active document at a time.
+3. One central text-editing area.
+4. Traditional File, Edit, and View menus.
+5. An optional logical-line-number gutter.
+6. Optional current-line highlighting.
+7. An optional bottom status row.
+8. Configurable typography and spacing.
+9. Configurable editor background, text, gutter, highlight, and border colours.
+10. Plain-text UTF-8 file loading and saving.
+11. A human-readable INI-style configuration file.
+12. Configurable keyboard shortcuts.
+13. Command-line support for opening files and inspecting configuration paths.
+14. Full-screen mode.
+15. A reliable unsaved-document warning mechanism.
+
+Do not add:
+- Tabs.
+- Multiple simultaneous documents.
+- Split panes.
+- Project explorer.
+- Syntax highlighting.
+- Code completion.
+- Integrated terminal.
+- Plugin framework.
+- Toolbar.
+- IDE functions.
+- Rich-text formatting.
+- Embedded images or other document objects.
+
+Preserve the original product's small, focused nature.
+
+---
+
+## 3. REQUIRED GTK4 ARCHITECTURE AND TECHNOLOGY STACK
+
+Use the following GTK4 architecture.
+
+### A. Application framework
+
+Use:
+
+- `GtkApplication`
+- `GtkApplicationWindow`
+- `GApplication`
+- `GAction`
+- `GMenu`
+- `GMenuModel`
+- `GtkPopoverMenuBar`
+
+Use GTK4's action-based application architecture for application commands, menu entries, and keyboard shortcuts.
+
+Do not recreate the old Qt QAction architecture.
+
+The menu system should be based on GMenu models and GActions.
+
+Use `gtk_application_set_accels_for_action()` for configuring accelerators.
+
+### B. Text-editing engine
+
+Use:
+
+- `GtkTextView`
+- `GtkTextBuffer`
+- `GtkTextIter`
+- `GtkTextMark`
+- `GtkTextTag`
+
+`GtkTextView` is the central editing widget.
+
+`GtkTextBuffer` is the authoritative document model.
+
+Do not implement a custom character-by-character text-editing engine.
+
+Use GTK's existing editing, cursor, selection, keyboard, accessibility, and scrolling behaviour.
+
+Enable GTK4's native text-buffer undo/redo support using:
+
+- `gtk_text_buffer_set_enable_undo()`
+- `gtk_text_buffer_get_can_undo()`
+- `gtk_text_buffer_get_can_redo()`
+- `gtk_text_buffer_undo()`
+- `gtk_text_buffer_redo()`
+- `gtk_text_buffer_begin_user_action()`
+- `gtk_text_buffer_end_user_action()`
+
+Target GTK 4.16 or newer for the native `GtkTextBuffer` undo implementation. Ubuntu 26.04 provides a newer GTK4 version.
+
+Avoid adding an external undo-stack implementation unless a demonstrated GTK limitation requires it.
+
+### C. File handling
+
+Use GLib/GIO:
+
+- `GFile`
+- `g_file_load_contents()`
+- `g_file_replace_contents()`
+- `GError`
+- `GBytes`, where appropriate.
+
+Use safe file replacement.
+
+A failed save must not accidentally truncate or destroy the original file.
+
+All saved documents must contain plain UTF-8 text.
+
+### D. Clipboard handling
+
+Use:
+
+- `GdkClipboard`
+- `gdk_display_get_clipboard()`
+- `gdk_clipboard_read_text_async()`
+- `gdk_clipboard_read_text_finish()`
+- `gdk_clipboard_set_text()`
+
+Implement an explicit plain-text clipboard pipeline.
+
+Do not allow GTK's clipboard integration to introduce rich-text document content.
+
+### E. Configuration
+
+Use:
+
+- `GKeyFile`
+- `g_key_file_load_from_file()`
+- `g_key_file_get_string()`
+- `g_key_file_get_boolean()`
+- `g_key_file_get_integer()`
+- `g_key_file_get_double()`
+- `g_key_file_to_data()`
+- `g_key_file_save_to_file()`
+
+The configuration file should be human-readable and INI-style.
+
+The configuration system must not depend on GSettings or a separate database.
+
+### F. Typography and text layout
+
+Use:
+
+- Pango for font-related operations.
+- GTK4 CSS for widget appearance.
+- `GtkTextTag` for text-specific presentation.
+- `GtkTextView` paragraph-spacing properties for layout.
+
+### G. Custom drawing
+
+Use GTK4-supported drawing mechanisms.
+
+For the line-number gutter, use `GtkDrawingArea` and its drawing callback where appropriate.
+
+For GTK4 custom visual elements, respect the snapshot/rendering architecture.
+
+Do not use obsolete GTK3 drawing APIs.
+
+Do not introduce invalid rendering operations, warnings, or unsupported widget painting behaviour.
+
+---
+
+## 4. VISUAL DESIGN AND CANONICAL DEFAULT SETTINGS
+
+Create a restrained, dark, low-distraction interface.
+
+Use the following canonical colour palette:
+
+| Component | Default |
+|---|---|
+| Editor background | #1e1e2e |
+| Editor border | #313244 |
+| Gutter background | #313244 |
+| Current-line highlight | #313244 |
+| Line-number text | #6c7086 |
+| Main text | #cdd6f4 |
+
+Use a monospace font.
+
+The recommended default family is `Monospace`, allowing Pango and the system font configuration to select a suitable available monospace font.
+
+Do not assume Monaco is installed on Linux.
+
+### Canonical defaults
+
+Use exactly these defaults throughout the application:
+
+| Setting | Default |
+|---|---|
+| Word wrap | Enabled |
+| Editor border size | 8 logical pixels |
+| Editor border colour | #313244 |
+| Block cursor | Disabled |
+| Font family | Monospace |
+| Font size | 12 points |
+| Line-height multiplier | 1.4 |
+| Pixels above paragraphs | 0 |
+| Pixels below paragraphs | 0 |
+| Extra wrapped-line distance | 0 |
+| Show line numbers | Enabled |
+| Highlight current line | Enabled |
+| Show status bar | Enabled |
+
+These are the single authoritative defaults.
+
+Do not maintain separate defaults in:
+- Application initialization.
+- Editor initialization.
+- Configuration parsing.
+- Example configuration.
+- Command-line output.
+- Tests.
+
+All representations must use the same canonical configuration structure.
+
+---
+
+## 5. MAIN WINDOW AND GTK4 WIDGET HIERARCHY
+
+Create one `GtkApplicationWindow`.
+
+Recommended initial dimensions:
+
+- Width: approximately 900 logical pixels.
+- Height: approximately 600 logical pixels.
+- Minimum width: approximately 400 logical pixels.
+- Minimum height: approximately 300 logical pixels.
+
+The main window should contain a vertical layout.
+
+Recommended widget hierarchy:
+
+```text
+GtkApplicationWindow
+│
+└── GtkBox (vertical)
+    │
+    ├── GtkPopoverMenuBar
+    │
+    ├── GtkFrame (editor surround)
+    │   │
+    │   └── GtkScrolledWindow
+    │       │
+    │       └── GtkTextView
+    │           │
+    │           └── GtkTextBuffer
+    │
+    └── GtkBox (status row)
+        │
+        └── GtkLabel
+```
+
+The GtkTextView can own a dedicated line-number gutter using GTK4's gutter API.
+
+The central editor must expand to fill the available window area.
+
+The menu must remain at the top.
+
+The status row must remain at the bottom when enabled.
+
+The editor must resize correctly without fixed geometry assumptions.
+
+Support:
+- Normal/restored window.
+- Maximized window.
+- Full-screen window.
+- Small supported window dimensions.
+- High-DPI displays.
+
+Avoid unnecessary fixed-size widgets and empty spacers.
+
+Do not add an empty bottom widget to compensate for an incorrectly sized editor.
+
+---
+
+## 6. EDITOR BORDER, BORDER COLOUR, AND GTK4 RENDERING REQUIREMENTS
+
+This is an important requirement.
+
+The `border_color` setting controls the visible editor surround.
+
+It does NOT control:
+- The native window title bar.
+- The desktop environment's window-manager decorations.
+- The operating-system window frame.
+
+Those elements remain under the control of the Linux desktop environment and window manager.
+
+### A. Border implementation
+
+Use a dedicated GTK4 container, preferably `GtkFrame`, to own the editor surround.
+
+Give the frame a dedicated CSS class, such as:
+
+`slate-editor-frame`
+
+Use a GTK4 CSS provider to apply the configured border colour and thickness.
+
+Conceptually:
+
+```css
+.slate-editor-frame {
+    border-style: solid;
+    border-width: 8px;
+    border-color: #313244;
+    border-radius: 0;
+}
+```
+
+The actual CSS values must be generated from validated configuration settings.
+
+Use GTK4-supported CSS provider APIs.
+
+Do not apply the border colour only to `GtkTextView` and assume it will paint all surrounding areas.
+
+The actual border-owning widget must receive the configured border properties.
+
+### B. Border geometry
+
+Keep these concepts independent:
+
+1. Outer editor border thickness.
+2. Text content's top inset.
+3. Text content's left inset.
+4. Text content's right inset.
+5. Text content's bottom inset.
+6. Left line-number gutter.
+7. Status-row height.
+
+The border is not the status row.
+
+The border is not the line-number gutter.
+
+The border is not text-view padding.
+
+Changing the border thickness must not change the document content, cursor position, modified state, or undo history.
+
+A border size of zero must remove the border cleanly.
+
+A positive border size must produce a visible border on all four intended sides.
+
+### C. GTK4 CSS and rendering safety
+
+Use a dedicated CSS provider and a dedicated widget CSS class.
+
+Ensure that the application stylesheet does not accidentally override the configured border colour.
+
+When configuration is reloaded:
+- Update the CSS.
+- Reapply the border thickness.
+- Reapply the border colour.
+- Trigger the appropriate widget redraw/layout updates.
+
+Do not manipulate GTK's internal rendering surfaces.
+
+Do not introduce unsupported GTK3 drawing functions.
+
+Do not use a custom drawing callback to paint another widget.
+
+Use GTK's normal CSS and snapshot/rendering lifecycle.
+
+### D. Native window decoration limitation
+
+Document in README.md that the editor's configured border does not change the native Ubuntu title bar or window-manager frame.
+
+Keep the terminology clear:
+
+- Editor border: controlled by gSlate.
+- Native application window decoration: controlled by the desktop environment.
+
+---
+
+## 7. DOCUMENT MODEL AND PLAIN-TEXT RULES
+
+Maintain one authoritative plain-text document model.
+
+Use `GtkTextBuffer`.
+
+The document must contain ordinary UTF-8 text only.
+
+Do not use:
+- HTML.
+- Rich-text serialization.
+- Embedded images.
+- Child widgets.
+- Paintables.
+- Document objects.
+
+GtkTextTags may be used internally for visual presentation, such as line height and current-line highlighting.
+
+These tags must never appear in saved files.
+
+### Newline policy
+
+Use LF (`\n`) as the canonical internal newline representation.
+
+At every external input boundary:
+
+1. Convert CRLF (`\r\n`) to LF first.
+2. Convert remaining CR (`\r`) to LF.
+3. Preserve existing LF.
+
+Do not accidentally convert CRLF into two newlines.
+
+### Important GTK4 buffer behaviour
+
+GTK text buffers represent logical lines with line separators between lines. The last logical line has no trailing line separator.
+
+Account for this when loading, exporting, copying, and testing text.
+
+Do not blindly append an extra newline when saving.
+
+The exported text must accurately preserve whether the input contained a trailing newline.
+
+For example:
+
+```text
+hello
+world
+```
+
+and:
+
+```text
+hello
+world
+
+```
+
+must remain different documents.
+
+Preserve:
+- Leading newlines.
+- Trailing newlines.
+- Consecutive empty paragraphs.
+- Empty files.
+- Multiple blank lines.
+
+A visual line wrap must never introduce a stored newline.
+
+### UTF-8 policy
+
+Use valid UTF-8 internally.
+
+On file load:
+
+- Validate UTF-8.
+- Detect and strip a UTF-8 BOM if present.
+- Normalize external line endings.
+- Reject invalid UTF-8 with a clear error rather than silently corrupting data.
+
+On save:
+
+- Export plain UTF-8.
+- Use LF output line endings.
+- Do not write styling information.
+
+Document this policy.
+
+### Round-trip invariant
+
+For supported UTF-8 text, loading a file and then saving without editing must preserve its logical text content, subject only to the documented BOM removal and newline normalization policy.
+
+---
+
+## 8. ENTER, PASTE, COPY, CUT, UNDO, AND REDO
+
+This is one of the highest-priority areas of the application.
+
+Manual typing and clipboard operations must behave consistently.
+
+### A. Enter/Return
+
+Use GTK4's native GtkTextView editing behaviour where possible.
+
+Pressing Enter must insert exactly one logical paragraph break.
+
+Support:
+- Enter in a non-empty line.
+- Enter in an empty line.
+- Repeated Enter.
+- Enter at the beginning of a line.
+- Enter at the end of a line.
+- Enter while a selection is active.
+- Enter adjacent to existing blank lines.
+
+Do not turn a logical newline into a visual wrap.
+
+Do not unnecessarily intercept GTK's normal keyboard input handling.
+
+Ensure that configured paragraph presentation remains consistent after pressing Enter.
+
+### B. Paste
+
+Implement deliberate plain-text clipboard insertion.
+
+An acceptable implementation is to intercept the `GtkTextView::paste-clipboard` signal and route it through a custom asynchronous GDK clipboard operation.
+
+Use:
+
+- `gdk_clipboard_read_text_async()`
+- `gdk_clipboard_read_text_finish()`
+
+Do not depend blindly on GTK's default paste implementation if it bypasses the application's newline-normalization policy.
+
+Paste behaviour:
+
+1. Read the clipboard as plain text.
+2. Ignore rich-text formatting.
+3. Normalize CRLF and CR to LF.
+4. Replace the active selection, if present.
+5. Insert at the correct cursor position.
+6. Preserve all intentional newlines.
+7. Preserve leading and trailing blank lines.
+8. Place the cursor at the end of the inserted text.
+9. Update current-line highlighting.
+10. Update line numbers.
+11. Update the status row.
+12. Keep scrolling and cursor visibility correct.
+13. Mark the document modified.
+14. Group the entire paste into one undoable operation.
+
+Because clipboard reading is asynchronous, preserve the paste insertion location correctly.
+
+Use temporary GtkTextMarks to retain the intended insertion and selection boundaries while clipboard data is being retrieved, or otherwise prevent intervening editing from making the insertion location ambiguous.
+
+Ensure temporary marks are deleted when the operation completes or fails.
+
+The paste operation must use:
+
+`gtk_text_buffer_begin_user_action()`
+
+and:
+
+`gtk_text_buffer_end_user_action()`
+
+as appropriate.
+
+A complete multiline paste must be one logical undo operation.
+
+For non-text clipboard formats, safely ignore the unsupported content.
+
+Do not insert images, paintables, or child widgets.
+
+### C. Copy
+
+Copy must export the selected text as plain UTF-8.
+
+Use `GdkClipboard` and `gdk_clipboard_set_text()`.
+
+Do not export:
+- Editor colours.
+- Font attributes.
+- Paragraph styling.
+- HTML.
+- Images.
+- Embedded objects.
+
+Preserve paragraph breaks.
+
+### D. Cut
+
+Cut must:
+
+1. Extract the selected text.
+2. Set the clipboard to plain text.
+3. Remove the selection.
+4. Group the deletion into one user-visible undo operation.
+
+### E. Undo and redo
+
+Enable native GTK4 text-buffer undo.
+
+The Edit menu must provide Undo and Redo.
+
+The menu actions should reflect the availability of undo/redo.
+
+A multiline paste must undo in one action.
+
+Repeated Enter operations must undo correctly.
+
+Cut must undo correctly.
+
+Redo must restore the exact document text.
+
+Loading a file must establish a clean undo/modified-state baseline.
+
+Changing visual settings must not create text-editing undo actions.
+
+Applying tags, changing colours, changing fonts, and changing layout must not mark an otherwise clean document as modified.
+
+Do not create a separate C undo engine unless GTK4 cannot provide the required contract.
+
+---
+
+## 9. LINE HEIGHT AND PARAGRAPH SPACING
+
+Provide configurable line height and paragraph spacing.
+
+Default:
+
+`line_height = 1.4`
+
+This means approximately 140% of the natural text line height.
+
+GTK4 provides a `GtkTextTag` `line-height` property.
+
+Use it where appropriate for the application's proportional line-height implementation.
+
+The property is available in GTK 4.6 and newer.
+
+Apply the presentation tag consistently to:
+- Existing document text.
+- Newly inserted text.
+- Pasted text.
+- Empty and newly created paragraphs, where applicable.
+
+Do not modify the actual plain-text content when changing line height.
+
+Support these settings:
+
+```ini
+line_height=1.4
+pixels_above=0
+pixels_below=0
+line_distance=0
+```
+
+Define the meaning of each setting:
+
+- `line_height`: proportional line-height factor.
+- `pixels_above`: additional paragraph spacing above logical paragraphs.
+- `pixels_below`: additional paragraph spacing below logical paragraphs.
+- `line_distance`: additional spacing between visually wrapped lines, using GTK's `pixels-inside-wrap` behaviour where appropriate.
+
+Use GTK4's `GtkTextView` spacing properties and text tags deliberately.
+
+Do not add the same spacing twice.
+
+Do not use a fixed pixel height based on one font's line spacing.
+
+Avoid clipping Unicode characters, emoji, combining marks, and fallback-font glyphs.
+
+When changing typography, recalculate and refresh the line-number gutter.
+
+Validate numeric values consistently.
+
+Reject:
+- NaN.
+- Infinity.
+- Negative spacing.
+- Unreasonably large values.
+- Invalid font sizes.
+
+Recommended validation ranges:
+
+| Setting | Valid range |
+|---|---|
+| Font size | 6–72 pt |
+| Line height | 0.5–5.0 |
+| Border size | 0–64 px |
+| Paragraph spacing | 0–128 px |
+| Extra wrapped-line distance | 0–64 px |
+
+Use the same validation function for configuration loading and runtime setters.
+
+---
+
+## 10. LINE NUMBERS AND CURRENT-LINE HIGHLIGHTING
+
+### A. Line-number gutter
+
+Implement a left-side line-number gutter.
+
+Prefer GTK4's native text-view gutter API:
+
+`gtk_text_view_set_gutter()`
+
+Use the left gutter associated with the GtkTextView.
+
+Attach a custom GTK4 widget, such as a GtkDrawingArea, to render the logical line numbers.
+
+Use GTK4 text-view geometry APIs such as:
+
+- `gtk_text_view_get_line_yrange()`
+- `gtk_text_view_get_visible_rect()`
+- `gtk_text_view_buffer_to_window_coords()`
+- `gtk_text_view_get_line_at_y()`
+
+Use the exact coordinate spaces documented by GTK4.
+
+Do not use fixed line-height multiplication to calculate the Y coordinate of a logical line.
+
+The gutter must:
+
+- Display logical paragraph numbers.
+- Never number visual wrapped rows separately.
+- Scroll in alignment with the text.
+- Remain vertically aligned after font changes.
+- Remain vertically aligned after line-height changes.
+- Recalculate width at digit boundaries.
+- Support 1–9, 10–99, 100–999, and larger document line counts.
+- Hide cleanly when disabled.
+
+Use Pango/Cairo drawing through the GTK4 drawing callback where appropriate.
+
+The gutter colour and text colour must be configurable.
+
+The gutter must not overlap the text area.
+
+The gutter must use GTK's layout and scrolling mechanisms rather than a separately scrolling widget that drifts out of alignment.
+
+### B. Current-line highlighting
+
+Highlight the logical paragraph containing the cursor.
+
+Use a dedicated GtkTextTag.
+
+Prefer GTK4 paragraph background styling, such as `paragraph-background-rgba`, where appropriate.
+
+The highlight should extend across the text paragraph area rather than only colouring individual characters.
+
+Update highlighting when:
+
+- Cursor position changes.
+- Selection changes.
+- Text is inserted.
+- Text is deleted.
+- A file is loaded.
+- Undo or redo occurs.
+- Configuration is reloaded.
+- The highlighting option is toggled.
+
+Applying or removing the highlight must not modify document text.
+
+Use one reusable highlight tag.
+
+Do not create thousands of unnecessary tags during cursor movement.
+
+---
+
+## 11. EDITOR LAYOUT AND RESIZING
+
+The editor must remain visually correct in:
+
+- Normal window mode.
+- Maximized mode.
+- Full-screen mode.
+- Minimum supported dimensions.
+- High-DPI environments.
+
+The gutter, text area, and editor border must remain synchronized.
+
+After window resizing:
+- Recalculate visible line-number positions.
+- Update gutter geometry.
+- Recalculate line-number digit width if needed.
+- Maintain correct text-view margins.
+- Preserve cursor position.
+- Preserve current-line highlighting.
+
+The status row must not overlap the editor.
+
+The final logical line must be scrollable completely into view.
+
+After a large multiline paste, verify that the vertical scrollbar range is correct.
+
+Avoid unnecessary fixed-height widgets.
+
+Do not use a bottom spacer to conceal a layout defect.
+
+Do not assume that normal-window and maximized-window geometry are identical.
+
+---
+
+## 12. MAIN WINDOW, MENUS, AND USER INTERACTIONS
+
+Use a traditional three-menu arrangement.
+
+Use GMenu and GAction.
+
+Use a GtkPopoverMenuBar or the appropriate GTK4 platform menu presentation.
+
+### FILE MENU
+
+| Action | Shortcut |
+|---|---|
+| New | Ctrl+N |
+| Open... | Ctrl+O |
+| Save | Ctrl+S |
+| Save As... | Ctrl+Shift+S |
+| Quit | Ctrl+Q |
+
+### EDIT MENU
+
+| Action | Shortcut |
+|---|---|
+| Undo | Ctrl+Z |
+| Redo | Ctrl+Y |
+| Cut | Ctrl+X |
+| Copy | Ctrl+C |
+| Paste | Ctrl+V |
+| Find... | Ctrl+F |
+| Find Next | F3 |
+| Go to Line... | Ctrl+G |
+| Reload Config | Ctrl+R |
+| Toggle Word Wrap | Ctrl+W |
+| Toggle Block Cursor | Ctrl+B |
+| Increase Font | Ctrl++ |
+| Decrease Font | Ctrl+- |
+
+### VIEW MENU
+
+| Action | Shortcut |
+|---|---|
+| Full Screen | F11 |
+| Show Line Numbers | Ctrl+L |
+| Highlight Current Line | Ctrl+H |
+| Show Status Bar | Ctrl+Shift+B |
+
+Use GTK accelerator notation for configurable shortcut values.
+
+For example:
+
+```ini
+open=<Primary>o
+save=<Primary>s
+find=<Primary>f
+fullscreen=F11
+```
+
+Do not store Qt-style QKeySequence objects or rely on Qt shortcut syntax.
+
+### Action implementation
+
+Define actions using GAction or GSimpleAction.
+
+Use clear and consistent action names.
+
+Use `gtk_application_set_accels_for_action()` to register accelerators.
+
+When configuration is reloaded:
+- Update the actual active GAction accelerators.
+- Update editor settings.
+- Update menu toggle state.
+- Update visual properties.
+
+Do not only reload an internal shortcut structure while leaving the actual GTK actions unchanged.
+
+Validate configured accelerators.
+
+If a shortcut is invalid, use the default and report a warning.
+
+Detect duplicate/conflicting configured shortcuts where practical.
+
+### Search
+
+Find must open a small search dialog.
+
+Find Next must repeat the most recent search.
+
+Search should be case-insensitive by default.
+
+When the end is reached:
+- Wrap to the beginning.
+- Report wrapping when useful.
+- Report not-found conditions clearly.
+
+Do not move the cursor to an unrelated location when search fails.
+
+### Go to Line
+
+Accept a 1-based logical line number.
+
+Valid values:
+
+`1` through the current logical line count.
+
+Move the cursor to the beginning of the selected logical line.
+
+Scroll the position into view.
+
+Update the status row.
+
+### Font adjustments
+
+Increase font size by one point.
+
+Decrease font size by one point.
+
+Minimum font size: 6 pt.
+
+Font changes must refresh:
+- Text appearance.
+- Pango layout.
+- Line-height display.
+- Gutter width.
+- Line-number alignment.
+- Cursor dimensions if custom block-cursor rendering is enabled.
+
+Font changes must not modify the document.
+
+### Cursor behaviour
+
+The normal insertion beam cursor is the default.
+
+An optional block cursor may be implemented using a properly coordinated GTK4 overlay/drawing approach.
+
+If implemented:
+- Do not confuse a block cursor with GTK overwrite mode.
+- Do not break normal text insertion.
+- Do not interfere with input methods or pre-edit text.
+- Do not globally change cursor blinking for unrelated widgets.
+- Keep the cursor synchronized during scrolling, resizing, and font changes.
+- Restore the normal GTK cursor when disabled.
+
+If a reliable block cursor cannot be implemented without harming GTK text input or accessibility, intentionally omit the toggle from the first release and document this GTK-specific adaptation rather than supplying a non-functional option.
+
+### Status row
+
+Create a small bottom status row using a GtkBox and GtkLabel.
+
+Do not depend on an obsolete or deprecated status-bar architecture.
+
+When enabled, display:
+
+```text
+Ln 12, Col 5
+```
+
+Use 1-based logical line and column numbers.
+
+Update on:
+- Cursor movement.
+- Selection movement.
+- Paste.
+- Cut.
+- Undo.
+- Redo.
+- Go to Line.
+- Document loading.
+
+Do not treat the status row's height as editor bottom padding.
+
+---
+
+## 13. FILE FORMATS, OPEN, SAVE, AND SAVE AS
+
+The primary document format is UTF-8 plain text.
+
+### Open
+
+Use a GTK4 native file chooser/dialog.
+
+Use `GtkFileDialog` where available in the target GTK4 version, or an appropriate GTK4-compatible alternative.
+
+File loading must:
+
+1. Obtain the selected GFile/path.
+2. Read the file contents using GIO.
+3. Handle file I/O errors.
+4. Validate UTF-8.
+5. Remove an optional UTF-8 BOM.
+6. Normalize CRLF and CR to LF.
+7. Load the text into GtkTextBuffer.
+8. Apply configured display formatting.
+9. Set the document's current filename.
+10. Mark the document clean.
+
+Loading must not create an unwanted user-visible undo operation.
+
+### Save
+
+Use:
+
+`g_file_replace_contents()`
+
+or its asynchronous equivalent.
+
+The save process must:
+
+1. Extract the entire GtkTextBuffer content.
+2. Export plain text only.
+3. Maintain UTF-8.
+4. Use canonical LF endings.
+5. Write using safe file replacement.
+6. Report errors.
+7. Mark the buffer clean only after successful completion.
+
+Never serialize GTK tags or other presentation properties.
+
+Never use rich-text markup for saving.
+
+### Save As
+
+Allow the user to choose a destination.
+
+Only update the document's current file path after a successful save.
+
+A failed Save As must not incorrectly change the current filename or mark the document clean.
+
+### Modified state
+
+Use GtkTextBuffer's modified-state functionality.
+
+When the buffer is changed, update the window title.
+
+Suggested title:
+
+```text
+gSlate Editor — filename.txt
+```
+
+For an untitled document:
+
+```text
+gSlate Editor — Untitled
+```
+
+When modified:
+
+```text
+gSlate Editor — filename.txt [modified]
+```
+
+Ask the user to save changes before:
+- Opening another file.
+- Creating a new document.
+- Quitting.
+- Closing the application window.
+
+Provide:
+- Save.
+- Discard.
+- Cancel.
+
+A Cancel response must leave the active document untouched.
+
+### File errors
+
+Show clear messages for:
+- Missing files.
+- Permission errors.
+- Invalid UTF-8.
+- Failed reads.
+- Failed writes.
+- Read-only destinations.
+- Invalid paths.
+
+Do not silently discard content.
+
+---
+
+## 14. ONE-FILE-AT-A-TIME COMMAND-LINE BEHAVIOUR
+
+Preserve the single-document architecture.
+
+Support:
+
+```bash
+gslate [files...]
+
+gslate --config PATH [files...]
+
+gslate --print-config
+
+gslate --print-config-paths
+
+gslate --help
+
+gslate --version
+```
+
+Use GApplication/GtkApplication command-line handling and GOption facilities appropriately.
+
+Command-line operations such as `--print-config` and `--version` should not unnecessarily create a graphical window.
+
+### Multiple paths
+
+The application has no tabs.
+
+If multiple paths are provided:
+- Open the first valid requested document.
+- Do not pretend all paths are open.
+- Report that additional documents are unsupported in this version.
+- Do not silently read every path and discard all but one.
+
+Handle each supplied path predictably.
+
+The `.desktop` file may use `%F` for file argument forwarding.
+
+---
+
+## 15. CONFIGURATION FILE AND DEFAULTS
+
+Use GLib's GKeyFile.
+
+Configuration filename:
+
+`config.ini`
+
+Configuration groups:
+
+`[editor]`
+
+`[shortcuts]`
+
+### Configuration discovery order
+
+1. `./config.ini`
+2. `$XDG_CONFIG_HOME/gslate-editor/config.ini` (normally `~/.config/gslate-editor/config.ini`)
+3. `/etc/gslate-editor/config.ini`
+4. Built-in canonical defaults if no usable configuration exists.
+
+An explicit command-line argument:
+
+`--config PATH`
+
+must override normal discovery.
+
+When the requested configuration file exists but is invalid, report the problem clearly and follow a documented safe fallback policy.
+
+A partial configuration should override only values it specifies.
+
+All unspecified values must come from canonical defaults.
+
+### Example config.ini
+
+```ini
+[editor]
+wordwrap=true
+
+border_size=8
+border_color=#313244
+
+background_color=#1e1e2e
+current_line_color=#313244
+line_number_color=#6c7086
+text_color=#cdd6f4
+
+block_cursor=false
+
+font_family=Monospace
+font_size=12
+
+line_height=1.4
+
+pixels_above=0
+pixels_below=0
+line_distance=0
+
+show_line_numbers=true
+highlight_current_line=true
+show_statusbar=true
+
+[shortcuts]
+new_file=<Primary>n
+open=<Primary>o
+save=<Primary>s
+save_as=<Primary><Shift>s
+quit=<Primary>q
+
+find=<Primary>f
+find_next=F3
+goto_line=<Primary>g
+reload_config=<Primary>r
+
+toggle_wordwrap=<Primary>w
+toggle_block_cursor=<Primary>b
+
+increase_font=<Primary>plus
+decrease_font=<Primary>minus
+
+fullscreen=F11
+toggle_line_numbers=<Primary>l
+toggle_current_line=<Primary>h
+toggle_statusbar=<Primary><Shift>b
+
+undo=<Primary>z
+redo=<Primary>y
+cut=<Primary>x
+copy=<Primary>c
+paste=<Primary>v
+```
+
+Use one canonical defaults structure in C.
+
+Generate `--print-config` from that same structure.
+
+Do not maintain separately hard-coded configuration output.
+
+### Configuration validation
+
+Validate:
+- Colour strings.
+- Boolean settings.
+- Font family.
+- Font size.
+- Border size.
+- Line-height multiplier.
+- Paragraph spacing.
+- Keyboard accelerators.
+
+Reject NaN and infinite numeric values.
+
+For invalid settings:
+- Retain a safe default.
+- Print a useful warning.
+- Do not crash.
+- Do not apply invalid CSS.
+
+### Configuration reload
+
+Reload configuration without restarting.
+
+Update:
+- Font.
+- Font size.
+- Background colour.
+- Text colour.
+- Border colour.
+- Border thickness.
+- Line height.
+- Paragraph spacing.
+- Word wrap.
+- Block cursor, if implemented.
+- Line-number visibility.
+- Current-line highlighting.
+- Status row visibility.
+- Keyboard shortcuts.
+
+Reload must not change:
+- Document contents.
+- Current file path.
+- Cursor position unnecessarily.
+- Undo history.
+- Modified state.
+
+---
+
+## 16. LINUX DESKTOP INTEGRATION
+
+Provide a valid Linux desktop entry file.
+
+Suggested:
+
+`packaging/gslate.desktop`
+
+Requirements:
+
+```ini
+[Desktop Entry]
+Name=gSlate Editor
+Comment=Lightweight plain-text editor
+Exec=gslate %F
+Icon=accessories-text-editor
+Terminal=false
+Type=Application
+Categories=Utility;TextEditor;
+MimeType=text/plain;
+```
+
+Use an installed standard text-editor icon if available.
+
+The launcher must reference the actual installed executable:
+
+`gslate`
+
+Do not point to a misspelled binary or unrelated path.
+
+Install the desktop file using Meson install rules.
+
+Ensure the executable is installed to a standard location such as:
+
+`/usr/bin/gslate`
+
+when using the system installation prefix.
+
+Respect DESTDIR and prefix settings during packaging.
+
+---
+
+## 17. SOURCE CODE ORGANIZATION
+
+Create a small, readable project structure.
+
+Recommended:
+
+```text
+gslate-editor/
+│
+├── meson.build
+├── README.md
+├── config.example.ini
+│
+├── packaging/
+│   └── gslate.desktop
+│
+├── src/
+│   ├── main.c
+│   ├── main_window.c
+│   ├── main_window.h
+│   ├── editor.c
+│   ├── editor.h
+│   ├── editor_gutter.c
+│   ├── editor_gutter.h
+│   ├── config_manager.c
+│   ├── config_manager.h
+│   ├── key_bindings.c
+│   ├── key_bindings.h
+│   ├── file_manager.c
+│   ├── file_manager.h
+│   ├── text_normalization.c
+│   ├── text_normalization.h
+│   ├── clipboard.c
+│   └── clipboard.h
+│
+├── tests/
+│   ├── meson.build
+│   ├── test_text_normalization.c
+│   ├── test_file_manager.c
+│   ├── test_editor.c
+│   ├── test_clipboard.c
+│   └── test_config_manager.c
+│
+└── docs/
+    └── DESIGN.md
+```
+
+The exact layout may be adjusted if it improves maintainability.
+
+However, preserve separation of responsibilities.
+
+### main.c
+
+Application initialization and command-line processing.
+
+### main_window.c / main_window.h
+
+Main application window, menus, actions, window title, dialogs, and application interactions.
+
+### editor.c / editor.h
+
+GtkTextView, GtkTextBuffer, document state, text layout, formatting tags, and cursor management.
+
+### editor_gutter.c / editor_gutter.h
+
+Line-number gutter drawing, positioning, geometry, and repaint management.
+
+### config_manager.c / config_manager.h
+
+GKeyFile configuration parsing, defaults, validation, path discovery, and reload.
+
+### key_bindings.c / key_bindings.h
+
+Shortcut parsing, validation, and GAction accelerator updates.
+
+### file_manager.c / file_manager.h
+
+File loading, UTF-8 validation, newline conversion, saving, and file errors.
+
+### text_normalization.c / text_normalization.h
+
+Standalone newline normalization helpers.
+
+### clipboard.c / clipboard.h
+
+Plain-text clipboard handling, asynchronous paste, copy, and cut.
+
+### General C coding requirements
+
+All implementation files must use C.
+
+Use `.c` and `.h` files.
+
+Do not introduce `.cpp`, `.cc`, or C++ classes.
+
+Use GObject ownership correctly.
+
+Use GTK parent-child ownership correctly.
+
+Avoid unnecessary manual memory management.
+
+Use GLib allocation and cleanup facilities consistently.
+
+Free allocated strings, GObjects, GErrors, and temporary marks correctly.
+
+Do not create a monolithic main window.
+
+Avoid unnecessary libraries and abstractions.
+
+---
+
+## 18. BUILD SYSTEM AND DEPENDENCIES
+
+Use:
+
+- C17.
+- GTK4.
+- GLib.
+- GIO.
+- GDK4.
+- Pango.
+- Meson.
+- Ninja.
+- pkg-config.
+- GCC.
+
+Target Ubuntu 26.04 LTS.
+
+### Required Ubuntu development packages
+
+Provide installation instructions using:
+
+```bash
+sudo apt update
+
+sudo apt install \
+    build-essential \
+    gcc \
+    meson \
+    ninja-build \
+    pkg-config \
+    libgtk-4-dev
+```
+
+Do not install Qt.
+
+Do not install Qt development libraries.
+
+Do not require a C++ compiler.
+
+GTK4's development package supplies the appropriate GTK-related development dependencies.
+
+### Meson build
+
+Create a complete `meson.build`.
+
+Use pkg-config dependency discovery for GTK4.
+
+Detect the minimum supported GTK version.
+
+Use GTK 4.16 or newer to support the required native text-buffer undo/redo functionality.
+
+Check the actual available GTK version at configure time.
+
+Use:
+
+```bash
+meson setup build --buildtype=release
+
+meson compile -C build
+```
+
+Run tests with:
+
+```bash
+meson test -C build --print-errorlogs
+```
+
+The executable must be named:
+
+`gslate`
+
+Provide proper installation rules.
+
+Also document a debug build:
+
+```bash
+meson setup build-debug --buildtype=debug
+
+meson compile -C build-debug
+```
+
+Use compiler warnings.
+
+Prefer a clean build with warnings enabled.
+
+Do not suppress GTK warnings to hide implementation defects.
+
+---
+
+## 19. KNOWN GTK4 IMPLEMENTATION RISKS THAT MUST NOT BE REPEATED
+
+Pay particular attention to the following issues.
+
+1. Do not confuse GtkTextView visual line wrapping with logical newline characters.
+
+2. Do not export GTK text tags, CSS formatting, or other presentation details into the saved file.
+
+3. Do not blindly use GTK's default clipboard paste if it does not satisfy the explicit plain-text and newline-normalization requirements.
+
+4. Do not make multiline paste multiple separate undo operations.
+
+5. Do not modify document text while applying current-line highlighting.
+
+6. Do not assume UTF-8 byte offsets and GtkTextIter character offsets are interchangeable.
+
+7. Do not calculate line-number Y coordinates by multiplying line numbers by an assumed fixed height.
+
+8. Do not build a separate scrolling gutter that can drift from the text view.
+
+9. Prefer GtkTextView's gutter API over unnecessary custom scrolling implementations.
+
+10. Do not let the CSS provider override the configured editor border colour.
+
+11. Do not confuse the editor's border with the native Ubuntu window frame.
+
+12. Do not implement border thickness by adding an arbitrary spacer widget.
+
+13. Do not treat the status row as editor bottom padding.
+
+14. Do not introduce GTK3-only rendering approaches into GTK4.
+
+15. Do not use unsupported custom drawing methods or suppress invalid rendering warnings.
+
+16. Do not use fixed line heights that clip Unicode or fallback fonts.
+
+17. Do not reapply formatting to the entire document on every individual keypress unless profiling demonstrates that it is necessary.
+
+18. Do not allow configuration reload to create text changes or invalidate the undo stack.
+
+19. Do not duplicate configuration defaults in multiple source files.
+
+20. Do not pretend multiple files are open when only one GtkTextBuffer is active.
+
+21. Do not change the current filename before a successful Save As operation.
+
+22. Do not mark a document clean following a failed save.
+
+23. Do not lose the active document after cancelling a file dialog or an unsaved-changes prompt.
+
+24. Do not introduce unnecessary third-party dependencies.
+
+25. Do not claim that an untested build or test suite has passed.
+
+---
+
+## 20. AUTOMATED TESTS AND ACCEPTANCE CRITERIA
+
+Use GLib's testing framework, including `g_test`.
+
+Write unit tests wherever the behaviour can be tested independently of a running GUI.
+
+### A. Newline normalization tests
+
+Test:
+
+- LF remains LF.
+- CRLF becomes one LF.
+- CR becomes LF.
+- Mixed CRLF, CR, and LF become consistent LF.
+- Leading newline is preserved.
+- Trailing newline is preserved.
+- Consecutive blank lines are preserved.
+- Empty input remains empty.
+
+### B. Document editing tests
+
+Test:
+
+- Empty document creation.
+- Simple text insertion.
+- Enter in a normal paragraph.
+- Enter in an empty paragraph.
+- Consecutive empty paragraphs.
+- Enter at the start and end of a paragraph.
+- Selection replacement.
+- Undo.
+- Redo.
+- Exact restoration of logical newlines.
+
+### C. Clipboard tests
+
+Test:
+
+- Single-line copy and paste.
+- Multiline copy and paste.
+- LF paste.
+- CRLF paste.
+- CR paste.
+- Mixed newline paste.
+- Leading and trailing newlines.
+- Multiple consecutive empty paragraphs.
+- Paste into an empty document.
+- Paste at the beginning, middle, and end.
+- Paste over a selection.
+- Unicode text.
+- Combining characters.
+- Emoji.
+- Plain-text copy.
+- Cut followed by undo.
+- Multiline paste as a single undo action.
+- Redo restoring the original pasted content.
+
+### D. File round-trip tests
+
+Test:
+
+- Empty file.
+- Ordinary UTF-8 file.
+- Non-ASCII UTF-8 file.
+- File with LF.
+- File with CRLF.
+- File with CR.
+- Mixed line endings.
+- File with leading newline.
+- File with trailing newline.
+- Multiple consecutive blank lines.
+- UTF-8 BOM.
+- Invalid UTF-8.
+- Failed file loading.
+- Failed file saving.
+- Save As failure.
+- Correct modified-state restoration.
+
+Verify that presentation tags never appear in exported text.
+
+### E. Typography and formatting tests
+
+Test:
+
+- Default font.
+- Font size adjustment.
+- Line-height changes.
+- Paragraph spacing.
+- Extra wrapped-line distance.
+- Existing text formatting.
+- Newly inserted text formatting.
+- Pasted text formatting.
+- Empty paragraph behaviour.
+- Unicode fallback glyphs.
+- Emoji.
+- Combining characters.
+
+Visual formatting must not change document contents or modified state.
+
+### F. Line-number tests
+
+Test:
+
+- One line.
+- Nine lines.
+- Ten lines.
+- Ninety-nine lines.
+- One hundred lines.
+- Long multiline document.
+- Wrapped paragraphs.
+- Line-number visibility toggle.
+- Font changes.
+- Line-height changes.
+- Scrolling.
+- Large paste.
+
+### G. Border tests
+
+Test:
+
+- Default border colour.
+- Non-default border colour.
+- Bright red border colour.
+- Bright green border colour.
+- Configuration reload from red to green.
+- Border size zero.
+- Positive border size.
+- Different font sizes.
+- Normal window.
+- Maximized window.
+- Full-screen window.
+- Window resizing.
+
+Confirm that the actual visible editor surround changes correctly.
+
+Confirm that the text area and gutter retain their independent colours.
+
+### H. Configuration tests
+
+Test:
+
+- Missing config.
+- Complete config.
+- Partial config.
+- Invalid colour.
+- Invalid font size.
+- Invalid border size.
+- Invalid line height.
+- NaN.
+- Infinity.
+- Invalid shortcuts.
+- Duplicate shortcuts.
+- Configuration reload.
+- Runtime defaults against `--print-config`.
+
+### I. Window and GUI manual tests
+
+Run the application and inspect:
+
+- Normal window around 900 x 600.
+- Maximized window.
+- Full-screen window.
+- Minimum supported dimensions.
+- Window resizing.
+- High-DPI scaling.
+- Line numbers on and off.
+- Current-line highlighting on and off.
+- Word wrap on and off.
+- Status row on and off.
+- Border size changes.
+- Border colour changes.
+- Large document scrolling.
+- Large multiline paste.
+
+Verify:
+
+- No unexpected bottom blank region.
+- No text clipping.
+- No gutter misalignment.
+- No status-row overlap.
+- No broken scrolling.
+- No unexpected cursor movement.
+- No invalid GTK rendering warnings.
+
+Use Xvfb or another suitable headless display environment for GUI tests in CI.
+
+Do not weaken tests merely to make them pass.
+
+Document which tests are automated and which require manual visual inspection.
+
+---
+
+## 21. REQUIRED DELIVERABLES
+
+Produce all the following.
+
+1. Complete compilable C17 source code for gSlate Editor.
+
+2. Complete Meson build configuration.
+
+3. A functional GTK4 native desktop application named `gslate`.
+
+4. A human-readable `config.example.ini`.
+
+5. A Linux `.desktop` launcher.
+
+6. Automated GLib testing code.
+
+7. A README.md containing:
+   - Project description.
+   - Features.
+   - Architecture.
+   - Dependencies.
+   - Ubuntu 26.04 installation instructions.
+   - Build instructions.
+   - Run instructions.
+   - Command-line options.
+   - Configuration paths.
+   - Keyboard shortcuts.
+   - Troubleshooting.
+
+8. A technical design document explaining:
+   - GtkTextBuffer document model.
+   - UTF-8 handling.
+   - Newline normalization.
+   - Clipboard pipeline.
+   - Undo/redo architecture.
+   - Line-height implementation.
+   - Line-number gutter.
+   - Current-line highlighting.
+   - Border implementation.
+   - GTK4 widget layout.
+
+9. A summary of the important architectural decisions and differences from the original Qt version.
+
+10. A summary of tests executed and build verification results.
+
+Do not merely describe these deliverables.
+
+Create the actual project files in the requested project directory.
+
+Make sure the build system configures successfully.
+
+Compile the application.
+
+Run the tests.
+
+Run the application wherever the execution environment supports GTK4 GUI testing.
+
+If GTK4 is missing from the development environment, still create the complete source tree and run all checks that are possible.
+
+Clearly report any build or GUI verification that could not be performed.
+
+Never claim that a test passed if it was not run.
+
+---
+
+## 22. IMPLEMENTATION WORKFLOW
+
+Follow this development sequence.
+
+**Step 1 — Inspect the workspace**
+
+Inspect the available project files and development environment.
+
+Identify existing Slate source code.
+
+If an original Qt Slate project exists, do not overwrite or delete it. Preserve it as the reference implementation.
+
+Create gSlate Editor as a separate C/GTK4 project.
+
+**Step 2 — Establish the architecture**
+
+Define:
+- Application structure.
+- Main window.
+- Editor.
+- Configuration manager.
+- File manager.
+- Clipboard manager.
+- Line-number gutter.
+
+Define the canonical configuration defaults.
+
+**Step 3 — Implement text normalization**
+
+Write standalone newline normalization functions.
+
+Test CRLF, CR, LF, mixed input, blank lines, leading newlines, and trailing newlines.
+
+**Step 4 — Implement the text buffer**
+
+Create the GtkTextView and GtkTextBuffer.
+
+Enable native undo/redo.
+
+Verify empty-document behaviour and plain-text serialization.
+
+**Step 5 — Implement file operations**
+
+Implement UTF-8 loading and saving.
+
+Implement BOM handling.
+
+Implement safe file replacement.
+
+Implement document modified-state handling.
+
+**Step 6 — Implement editing and clipboard behaviour**
+
+Implement Enter behaviour.
+
+Implement copy and cut.
+
+Implement custom plain-text paste.
+
+Verify single-operation undo and redo.
+
+**Step 7 — Implement typography and formatting**
+
+Implement font selection and size adjustment.
+
+Implement proportional line height.
+
+Implement paragraph spacing.
+
+Implement word wrap.
+
+**Step 8 — Implement line numbers and highlighting**
+
+Implement the GTK4 gutter widget.
+
+Synchronize it with document scrolling.
+
+Implement the current-line highlighting tag.
+
+**Step 9 — Implement window layout and border**
+
+Build the main widget hierarchy.
+
+Implement the editor surround using GtkFrame and GTK4 CSS.
+
+Verify border colour and border thickness independently of the operating-system window decorations.
+
+Test the bottom spacing and status-row geometry.
+
+**Step 10 — Implement the application interface**
+
+Create GMenu menus and GAction handlers.
+
+Implement file, edit, and view operations.
+
+Implement search, Find Next, Go to Line, and Full Screen.
+
+Implement status-row updates.
+
+**Step 11 — Implement configuration**
+
+Implement GKeyFile loading.
+
+Implement configuration path discovery.
+
+Implement `--config`.
+
+Implement `--print-config`.
+
+Implement `--print-config-paths`.
+
+Implement live configuration reload and accelerator updates.
+
+**Step 12 — Implement Linux integration**
+
+Create the desktop launcher.
+
+Implement Meson install rules.
+
+Verify the installed binary name.
+
+**Step 13 — Testing**
+
+Run all unit tests.
+
+Run the build.
+
+Run the application.
+
+Test actual GUI resizing, line numbers, border colours, scrolling, clipboard operations, and file loading/saving.
+
+Fix defects rather than weakening tests.
+
+**Step 14 — Final code review**
+
+Review:
+- Memory management.
+- GObject ownership.
+- Error handling.
+- UTF-8 correctness.
+- Newline correctness.
+- Clipboard correctness.
+- Undo/redo correctness.
+- Configuration consistency.
+- GTK4 API usage.
+- CSS rendering.
+- Layout and resizing.
+- Build and installation.
+
+Remove unnecessary abstractions and unfinished code.
+
+**Step 15 — Final report**
+
+Provide:
+- Project directory tree.
+- Major implementation decisions.
+- Build commands.
+- Test results.
+- Known limitations.
+- Confirmation of whether the application was successfully compiled and run.
+
+Keep the report factual.
+
+---
+
+## 23. FINAL INSTRUCTIONS TO THE AI DEVELOPER
+
+Build gSlate Editor as a reliable, minimal, native GTK4 desktop plain-text editor written entirely in C17.
+
+Preserve the original Slate application's identity and useful functionality.
+
+Do not copy its Qt implementation literally.
+
+Use GTK4-native architecture and APIs.
+
+The highest-priority requirements are:
+
+1. The application must be written in C, not C++.
+
+2. GtkTextView and GtkTextBuffer must provide the central editing functionality.
+
+3. Only one active document may exist at a time.
+
+4. File loading and saving must preserve UTF-8 plain text.
+
+5. CRLF, CR, and LF must be normalized without adding or losing logical blank lines.
+
+6. Enter and multiline paste must produce consistent logical paragraph structures.
+
+7. Copy, cut, paste, undo, and redo must be predictable.
+
+8. Multiline paste must be one logical undo operation.
+
+9. GTK presentation tags must never leak into saved document content.
+
+10. Font changes and Unicode fallback glyphs must not be clipped.
+
+11. GTK4's native gutter mechanism should be used for line numbers wherever practical.
+
+12. Gutter positioning, text scrolling, current-line highlighting, and status information must remain synchronized.
+
+13. The configured border colour must be visibly applied to the correct border-owning widget.
+
+14. The editor border must remain separate from the native Ubuntu window frame.
+
+15. No invalid GTK rendering operations or unexplained bottom spacing may be introduced.
+
+16. Configuration defaults, example configuration, and `--print-config` must agree exactly.
+
+17. Configuration reload must update actual GTK widgets and GAction accelerators.
+
+18. File operations must not silently discard unsaved changes.
+
+19. The application must build, have meaningful automated tests, and include complete documentation.
+
+20. The implementation must remain lightweight and avoid unnecessary dependencies.
+
+Make sensible GTK4-specific engineering decisions.
+
+Prioritize correctness, native Linux integration, predictable editing behaviour, and maintainability over cleverness.
+
+**Deliver a functioning C/GTK4 desktop application, not merely a design proposal or code explanation.**
+
+END OF MASTER DEVELOPMENT PROMPT
