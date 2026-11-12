@@ -1,0 +1,284 @@
+# AI DEVELOPMENT PROMPT
+# Transform Leafpad source into a modern, config-driven plain-text editor
+# with dark theme, non-blinking block cursor, and features matching config.ini
+# (inspired by the gSlate Editor design goals)
+
+---
+
+## 1. ROLE AND OVERALL OBJECTIVE
+
+Act as a senior C language and GTK desktop-application architect and developer.
+
+You are given the complete source tree of **Leafpad** (a classic lightweight GTK text editor written in C).
+
+Your task is to produce a **new, maintainable C application** derived from the Leafpad codebase that implements the visual identity, configuration system, editing behaviour, and keyboard-driven features described in the supplied `config.ini` and the design goals below.
+
+The resulting application shall be named:
+
+**gSlate Editor** (binary name: `gslate`)
+
+Primary goals:
+- Keep the small, focused, lightweight spirit of Leafpad.
+- Add a human-readable INI configuration system driven by the supplied `config.ini` style.
+- Implement a dark, low-distraction colour scheme.
+- Provide a **non-blinking block cursor**.
+- Support the editor appearance, spacing, line-number, current-line, and status-bar options from the configuration.
+- Provide the keyboard shortcuts listed in the configuration.
+- Remain a pure C application (C17 preferred) that builds with Meson + Ninja on Ubuntu 26.04.
+- Prefer GTK4 where practical. If a full GTK2 → GTK4 port is too large for a single pass, produce a clean GTK3 intermediate that already contains the new configuration system, block cursor, and visual features, and clearly document the remaining GTK4 migration steps.
+
+Do **not**:
+- Turn it into an IDE, multi-document editor, or Electron/Qt application.
+- Add syntax highlighting, plugins, tabs, or project management.
+- Leave core features as TODOs or stubs.
+- Break the existing Leafpad file-open / save / undo behaviour without replacing it with an equivalent or better implementation.
+
+The deliverable must be a complete, compilable source tree with build instructions, example configuration, desktop file, and a short design document explaining the changes made to the original Leafpad architecture.
+
+---
+
+## 2. SOURCE BASE AND REFERENCE MATERIALS
+
+You will receive (or already have access to):
+
+1. The full Leafpad source tree (`leafpad-main/` or equivalent).
+2. A sample `config.ini` that defines the desired appearance and shortcuts.
+3. The long gSlate design specification (for inspiration on architecture, newline handling, clipboard policy, configuration discovery, and GTK best practices).
+
+Treat the Leafpad source as the starting point. Preserve useful, well-tested code (file I/O, encoding handling, basic editing callbacks, printing if still wanted) where it does not conflict with the new requirements.
+
+Where Leafpad’s GTK2 API is obsolete, replace it with the modern equivalent rather than keeping deprecated calls.
+
+---
+
+## 3. REQUIRED PRODUCT IDENTITY
+
+- Application display name: **gSlate Editor**
+- Binary / executable name: **gslate**
+- Desktop file: `gslate.desktop`
+- Configuration file name: `config.ini`
+- Configuration groups: `[editor]` and `[shortcuts]`
+
+Target platform: Ubuntu 26.04 LTS (and compatible modern Linux).
+
+---
+
+## 4. CANONICAL DEFAULTS (MUST MATCH EXACTLY)
+
+These values are the single source of truth. All code, example config, and `--print-config` output must agree.
+
+### Editor appearance (from the supplied config.ini + gSlate defaults)
+
+```
+wordwrap                 = true
+border_size              = 8          (or the value in the supplied config.ini if different)
+border_color             = #313244
+background_color         = #1e1e2e
+gutter_background_color  = #313244
+current_line_color       = #313244
+line_number_color        = #6c7086
+text_color               = #cdd6f4
+block_cursor             = true
+block_cursor_blink       = false      ← NON-BLINKING
+font_family              = Monospace  (or Monaco if available; fall back gracefully)
+font_size                = 12         (or the value in config.ini)
+line_height              = 1.4
+pixels_above             = 0
+pixels_below             = 0
+line_distance            = 0
+show_line_numbers        = true       (or the value in config.ini)
+highlight_current_line   = true
+show_statusbar           = true
+```
+
+### Keyboard shortcuts (from the supplied config.ini)
+
+Implement at least:
+
+```
+new_file           = <Primary>n
+open               = <Primary>o
+save               = <Primary>s
+save_as            = <Primary><Shift>s
+quit               = <Primary>q
+undo               = <Primary>z
+redo               = <Primary>y
+cut                = <Primary>x
+copy               = <Primary>c
+paste              = <Primary>v
+find               = <Primary>f
+find_next          = F3
+goto_line          = <Primary>g
+reload_config      = <Primary>r
+toggle_wordwrap    = <Primary>w
+increase_font      = <Primary>plus
+decrease_font      = <Primary>minus
+fullscreen         = F11
+toggle_line_numbers= <Primary>l
+toggle_current_line= <Primary>h
+toggle_statusbar   = <Primary><Shift>b
+```
+
+(Add a toggle for the block cursor if practical, e.g. `<Primary>b`.)
+
+---
+
+## 5. CORE FEATURES THAT MUST BE IMPLEMENTED
+
+### 5.1 Configuration system
+
+- Use GLib `GKeyFile`.
+- Discovery order:
+  1. `./config.ini` (current working directory)
+  2. `$XDG_CONFIG_HOME/gslate-editor/config.ini` (usually `~/.config/gslate-editor/config.ini`)
+  3. `/etc/gslate-editor/config.ini`
+  4. Built-in canonical defaults
+- Support `--config PATH` on the command line.
+- Support `--print-config` and `--print-config-paths`.
+- Live reload (Ctrl+R / menu) that updates fonts, colours, border, line numbers, status bar, word wrap, and accelerators **without** changing document content, undo history, or modified state.
+- Validate colours, sizes, and accelerators; fall back to defaults with a clear warning on invalid values.
+
+### 5.2 Non-blinking block cursor (highest visual priority)
+
+- Implement a **block cursor** that does **not** blink.
+- The cursor should be a solid rectangle covering the character cell (or approximate width of one character).
+- Colour should be derived from the text colour or a configurable cursor colour (default to a high-contrast colour such as the text colour inverted or a distinct accent).
+- The block cursor must:
+  - Stay correctly positioned while typing, selecting, scrolling, and resizing.
+  - Survive font size changes and line-height changes.
+  - Not interfere with input methods / pre-edit text.
+  - Not force overwrite mode unless the user explicitly wants it.
+- If a perfect overlay is difficult on the chosen GTK version, document the limitation and provide the best reliable approximation (e.g. a custom drawing overlay on the text view or a carefully managed GtkTextTag + caret).
+
+### 5.3 Visual appearance
+
+- Dark background (`#1e1e2e`) and matching gutter / border / current-line colours.
+- Configurable border around the editor area (use a `GtkFrame` or equivalent container + CSS class). The border must **not** affect the native window decorations.
+- Optional logical line-number gutter (prefer GTK text-view gutter API when on GTK3/4).
+- Optional current-line highlighting (paragraph background).
+- Optional status bar showing `Ln X, Col Y` (1-based).
+- Configurable monospace font and size.
+- Proportional line-height support (`line_height = 1.4`).
+
+### 5.4 Editing behaviour
+
+- One document at a time (preserve Leafpad’s single-window model).
+- Reliable UTF-8 loading/saving with BOM stripping and CRLF/CR → LF normalisation (preserve trailing newlines correctly).
+- Native or carefully implemented undo/redo that treats a multi-line paste as a single undo step.
+- Explicit plain-text clipboard handling (no rich-text leakage).
+- Word-wrap toggle.
+- Find / Find Next and Go-to-Line dialogs.
+- Unsaved-changes warning on New / Open / Quit.
+
+### 5.5 Desktop integration
+
+- Valid `.desktop` file.
+- Correct binary name `gslate`.
+- Meson install rules that place the binary and desktop file correctly.
+
+---
+
+## 6. RECOMMENDED ARCHITECTURE (derived from Leafpad)
+
+Keep Leafpad’s modular structure where it helps:
+
+```
+src/
+  main.c / leafpad.c          → application entry, GtkApplication (or GtkWindow for GTK2/3)
+  main_window.c / window.c    → window, menus, actions
+  editor.c / textview.c       → GtkTextView / GtkTextBuffer ownership
+  gutter.c / linen.c         → line-number drawing (modernise the existing linenum.c)
+  config.c                    → NEW: GKeyFile configuration manager
+  keybindings.c               → NEW or extended: accelerator handling
+  file.c                      → keep / modernise file I/O
+  clipboard.c                 → NEW or extended: plain-text paste pipeline
+  ...
+```
+
+Modernise:
+
+- Replace GTK2-only calls with GTK3 or GTK4 equivalents.
+- Prefer `GtkApplication` + `GAction` / `GMenu` for the menu and shortcut system.
+- Use CSS providers for colours and border instead of hard-coded GdkColors.
+- Use `GtkTextBuffer`’s native undo when available (GTK ≥ 4.6 / 4.16 preferred).
+
+---
+
+## 7. IMPLEMENTATION PRIORITIES (ordered)
+
+1. Configuration loading + live reload + `--print-config`.
+2. Dark colour scheme applied via CSS / style context.
+3. Non-blinking block cursor.
+4. Border (GtkFrame + CSS).
+5. Line numbers (modernised gutter) and current-line highlight.
+6. Status bar.
+7. Font size increase/decrease and line-height.
+8. Shortcut system driven by the `[shortcuts]` section.
+9. Clipboard paste that normalises newlines and is a single undo action.
+10. File open/save with correct UTF-8 and trailing-newline preservation.
+11. Desktop file + Meson packaging.
+12. Automated tests for text normalisation, config parsing, and (where possible) buffer operations.
+
+---
+
+## 8. BUILD SYSTEM
+
+- Prefer **Meson** + Ninja.
+- Detect GTK version (target GTK 4.x if feasible; GTK 3.24+ is acceptable as an intermediate).
+- Provide clear Ubuntu 26.04 dependency list:
+
+```bash
+sudo apt install build-essential meson ninja-build pkg-config \
+  libgtk-4-dev   # or libgtk-3-dev if staying on GTK3
+```
+
+- Binary must be named `gslate`.
+- Install rules for the binary and the `.desktop` file.
+
+---
+
+## 9. DELIVERABLES
+
+Produce a complete project directory containing:
+
+1. All modified / new C source and header files.
+2. `meson.build` (or updated Autotools if you must stay close to original Leafpad build).
+3. `config.example.ini` that matches the canonical defaults.
+4. `packaging/gslate.desktop`.
+5. `README.md` with:
+   - How the project relates to original Leafpad
+   - Build / run / install instructions
+   - Configuration paths and options
+   - Keyboard shortcuts
+   - Known limitations (especially any remaining GTK2/3 → GTK4 gaps)
+6. A short `DESIGN.md` explaining:
+   - How the block cursor was implemented
+   - How configuration is loaded and applied
+   - How the border and colours are applied
+   - Differences from classic Leafpad
+7. Basic unit tests (GLib test framework) for:
+   - Newline normalisation
+   - Config parsing / validation
+   - Colour / size range checks
+
+---
+
+## 10. FINAL INSTRUCTIONS
+
+- Start from the Leafpad source tree.
+- Make the resulting application feel like a modern, dark, keyboard-centric successor to Leafpad that obeys the supplied `config.ini`.
+- The **non-blinking block cursor** is a required visual feature.
+- Keep the code readable, free of memory leaks, and free of deprecated GTK API where possible.
+- Document every important architectural decision (especially any temporary GTK3 intermediate steps).
+- Do not claim features are finished if they are only partially implemented.
+
+When you are finished, the user should be able to:
+
+```bash
+meson setup build && meson compile -C build
+./build/gslate
+```
+
+and obtain a working dark-themed editor with a solid block cursor, configurable via `config.ini`, that preserves the lightweight character of Leafpad.
+
+END OF PROMPT
