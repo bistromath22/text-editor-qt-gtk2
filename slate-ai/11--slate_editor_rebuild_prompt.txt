@@ -1,0 +1,788 @@
+MASTER AI DEVELOPMENT PROMPT
+REBUILD THE “SLATE” DESKTOP TEXT EDITOR FROM SCRATCH
+
+============================================================
+1. ROLE AND OVERALL OBJECTIVE
+============================================================
+
+Act as a senior C++/Qt desktop-application architect and developer. Design and implement a complete, maintainable rewrite of the Slate text editor described in this prompt.
+
+The goal is to recreate the useful identity and features of the existing Slate application while correcting its editing, clipboard, newline, formatting, configuration, and window-layout weaknesses. Do not merely patch the old source. Build a clean implementation with a clear architecture, predictable behaviour, tests, and build instructions.
+
+The result must be a working native desktop text editor, not a mock-up, web page, design concept, or code-only explanation. Implement the application and all source files needed to build it. Do not leave core features as TODOs or pseudocode.
+
+Where the reference implementation is ambiguous or internally inconsistent, use the explicit decisions in this prompt. If a detail is genuinely unspecified, choose a sensible, simple behaviour, document the choice, and keep the implementation consistent.
+
+============================================================
+2. PROJECT IDENTITY AND PRODUCT DESCRIPTION
+============================================================
+
+Project name: Slate
+Application/binary name: slate
+Product type: Lightweight native desktop plain-text editor
+Primary platform: Linux desktop
+Framework: Qt 6 Widgets
+Language: C++17
+Build system: CMake
+
+Slate is intended to be a fast, uncluttered, keyboard-friendly text editor for ordinary text and source files. It should feel like a focused writing/code-editing surface rather than a full IDE. It should open quickly, use a restrained dark theme, offer configurable typography and spacing, and keep the editing area visually clean.
+
+The application should primarily edit plain text. It is not a word processor and must not silently introduce rich-text formatting, HTML markup, embedded objects, or document styling into saved files.
+
+The editor should retain the original project's simple design:
+- One main application window.
+- One active document/editor at a time.
+- Traditional File, Edit, and View menus.
+- A central text-editing area.
+- Optional line-number gutter.
+- Optional current-line highlighting.
+- Optional status bar.
+- Configurable font, font size, line height, margins, colors, and shortcuts.
+- Plain-text UTF-8 open/save operations.
+- A small INI configuration file.
+- Command-line support for opening files and inspecting configuration paths.
+
+Do not add tabs, split panes, a project explorer, syntax highlighting, a terminal, plugins, a toolbar, or IDE functions unless explicitly requested later. Preserve the small, focused nature of Slate.
+
+============================================================
+3. REFERENCE PROJECT: WHAT THE EXISTING CODE CONTAINS
+============================================================
+
+The source project supplied for reference is a compact C++/Qt6 Widgets application. Its original source layout is:
+
+slate/
+  CMakeLists.txt
+  slate-editor.desktop
+  src/
+    main.cpp
+    MainWindow.h
+    MainWindow.cpp
+    Editor.h
+    Editor.cpp
+    ConfigManager.h
+    ConfigManager.cpp
+    KeyBindings.h
+
+Existing implementation responsibilities:
+
+A. main.cpp
+- Creates QApplication.
+- Sets application name, version, and organization name.
+- Uses QCommandLineParser.
+- Accepts an optional --config PATH argument.
+- Supports --print-config to print a default INI configuration.
+- Supports --print-config-paths to print the search order and active configuration path.
+- Accepts positional file paths.
+- Opens the supplied files at startup.
+- The current code maximizes the window when file paths are provided and shows a normal-size window otherwise.
+
+B. MainWindow
+- Derives from QMainWindow.
+- Owns one Editor as its central widget.
+- Starts at approximately 900 x 600 pixels and has a minimum size of 400 x 300 pixels.
+- Creates File, Edit, and View menus.
+- Handles new/open/save/save-as/quit.
+- Handles find/find-next/go-to-line.
+- Handles configuration reload.
+- Handles word-wrap, block-cursor, font-size, fullscreen, line-number, current-line-highlight, and status-bar toggles.
+- Updates the window title with the file name and a modified marker.
+- Asks the user whether to save unsaved changes before destructive actions or closing.
+- Uses a status message for the current logical line and column when the status bar is visible.
+- Opens files as UTF-8 text and saves the editor's plain text as UTF-8.
+
+C. Editor
+- Derives from QTextEdit.
+- Disables rich-text acceptance, so the editor is intended to behave as a plain-text editor.
+- Enables undo and redo.
+- Uses a four-space tab stop.
+- Provides word wrap on/off.
+- Provides an optional block cursor or normal beam cursor.
+- Provides configurable font family and size.
+- Provides configurable line-height multiplier, paragraph spacing above/below, and extra line distance.
+- Provides background, border, text, current-line, and line-number colors.
+- Provides a custom line-number gutter implemented by a child QWidget.
+- Highlights the current logical paragraph/line using QTextEdit extra selections.
+- Paints line numbers based on QTextDocument blocks and the document layout.
+- Adds viewport margins for the gutter and visual border space.
+- Intercepts Enter/Return to insert a QTextBlock and apply configured paragraph metrics.
+- Reapplies line metrics after bulk setPlainText() and clear() operations.
+- Tracks modified state and emits a modificationChanged signal.
+
+D. ConfigManager
+- Stores editor settings in an EditorConfig structure.
+- Loads settings using QSettings in INI format.
+- Looks for editor settings under an [editor] group.
+- Loads keyboard shortcuts under a [shortcuts] group.
+- Provides reload support and a configReloaded signal.
+- Uses built-in defaults when a config file is absent or cannot be used.
+
+E. KeyBindings
+- Stores a mapping between named editor actions and QKeySequence shortcuts.
+- Loads shortcut overrides from the [shortcuts] INI group.
+
+F. Build and desktop integration
+- Uses CMake 3.16 or newer.
+- Requires C++17.
+- Uses Qt6 Widgets and CMake AUTOMOC/AUTORCC/AUTOUIC.
+- Builds an executable named slate.
+- Provides a Linux .desktop launcher file.
+
+The reference source is a prototype-sized implementation, not a specification to reproduce every defect. Use it to understand the product's intended features and visual identity. Correct its weaknesses rather than copying them.
+
+============================================================
+4. VISUAL DESIGN AND GUI REQUIREMENTS
+============================================================
+
+Create a restrained, dark, low-distraction interface.
+
+Recommended default palette:
+- Editor background: #1e1e2e
+- Border/gutter background: #313244
+- Current-line highlight: #313244
+- Line-number text: #6c7086
+- Main text: #cdd6f4
+
+Use a monospace font. Recommended default font family is "Monospace" (or the platform's closest available monospace fallback) at 12 points. Font selection must be robust if the named family is not installed.
+
+Recommended initial defaults, chosen to match the intended defaults exposed by the reference application's --print-config output and Editor constructor:
+- Word wrap: enabled.
+- Border size: 8 logical pixels.
+- Block cursor: disabled (normal beam cursor by default).
+- Font family: Monospace.
+- Font size: 12 points.
+- Line-height multiplier: 1.4 (140%).
+- Pixels above each paragraph: 0.
+- Pixels below each paragraph: 0.
+- Extra line distance: 0.
+- Line numbers: enabled.
+- Current-line highlighting: enabled.
+- Status bar: enabled.
+
+The original header's EditorConfig defaults do not agree with these values: it uses border size 20, block cursor true, Monaco 18, line numbers false, and status bar false. Do not preserve this disagreement. Define one canonical defaults object and use it everywhere, including runtime startup, generated config output, tests, and documentation. If you intentionally choose different defaults, change all representations together and explain why.
+
+Main-window design:
+- Initial normal size: approximately 900 x 600.
+- Minimum size: approximately 400 x 300.
+- Central editor fills the available central area.
+- Menus appear at the top.
+- Status bar appears at the bottom when enabled.
+- Line-number gutter appears on the left when enabled.
+- There should be no unexplained blank strip or oversized bottom area.
+- Do not use hard-coded geometry that only works when maximized.
+- The layout must work in normal, maximized, and full-screen states.
+- Resizing the window must not make the gutter, viewport, text, or status bar drift out of alignment.
+
+The border/margin implementation must be explicit. Do not use one setting accidentally as all four viewport margins unless that is truly the design. Keep separate concepts separate:
+- editor content inset / top padding;
+- left line-number gutter width;
+- right visual border/inset;
+- bottom content inset;
+- status-bar height, which belongs to the main-window layout and is not an editor viewport margin.
+
+The editor's visual border must not be confused with a spacer widget or the status bar. Avoid adding an empty fixed-height widget to hide a geometry problem.
+
+============================================================
+5. DOCUMENT MODEL AND PLAIN-TEXT RULES
+============================================================
+
+The editor must maintain a single, authoritative plain-text document model.
+
+Use Qt's text document model appropriately. A QTextDocument-backed editor is acceptable and likely the simplest approach because the current project depends on QTextBlockFormat paragraph metrics. QTextEdit is the reference implementation. You may choose another Qt text widget only if you prove that it supports all required paragraph-spacing, line-height, cursor, clipboard, undo, and line-number behaviours reliably.
+
+The user-visible document must be plain text:
+- No HTML is saved.
+- No rich-text styling is imported from the clipboard.
+- No fonts, colors, tables, images, or embedded objects are pasted into the document.
+- Paragraph formatting used internally to render the document must not leak into the saved plain-text content.
+
+Use a consistent model for newlines:
+- A logical paragraph break is a real document paragraph/block boundary.
+- A visual wrap caused by the width of the window is not a stored newline.
+- Do not insert newline characters into the document merely because a visual line wraps.
+- Empty paragraphs must be preserved.
+- Consecutive empty paragraphs must be preserved.
+- Leading newlines and trailing newlines must be preserved according to the documented plain-text round-trip policy.
+- A paste operation must not merge, duplicate, or drop paragraph breaks.
+
+Canonical internal newline policy:
+- Normalize external text line endings to LF (\n) at input boundaries.
+- Convert CRLF (\r\n) to LF first.
+- Convert remaining CR (\r) to LF.
+- Do not accidentally turn CRLF into two newlines. The order of normalization matters.
+- Insert the normalized text through the Qt document/cursor APIs.
+- When exporting plain text, use a documented LF representation internally. If platform-native line endings are desired for file output, convert only at the file-writing boundary.
+
+Prefer Qt's QTextDocument/QTextBlock representation rather than manually inserting special HTML tags or maintaining a second newline array. The document structure should be the source of truth.
+
+Required round-trip invariant:
+For supported text input, loading or pasting text, then exporting plain text, must preserve the sequence of logical characters and paragraph breaks, subject only to the explicitly documented newline normalization policy.
+
+============================================================
+6. ENTER, PASTE, COPY, CUT, AND CLIPBOARD CONTRACT
+============================================================
+
+This is a critical part of the rewrite. Treat manual editing and clipboard editing as equally important paths.
+
+A. Enter/Return
+- Pressing Enter or Return creates exactly one logical paragraph break.
+- Enter must work in non-empty paragraphs, empty paragraphs, consecutive blank paragraphs, at the beginning/end of a paragraph, and when a selection is active.
+- Repeatedly pressing Enter must create the requested number of empty paragraphs.
+- Enter must not be swallowed or converted into a visual wrap.
+- Paragraph metrics must remain correct on both sides of the newly created break.
+- Enter with documented modifier combinations must behave predictably; do not intercept modified key combinations unless they are explicitly assigned a meaning.
+
+B. Paste
+Implement a deliberate clipboard text insertion pathway. In a QTextEdit-based implementation, consider overriding insertFromMimeData(const QMimeData *source). Do not rely on undocumented assumptions about the default paste path.
+
+Paste behaviour:
+1. Detect whether the MIME data contains plain text.
+2. For text, read it as text and discard rich-text styling/HTML.
+3. Normalize CRLF and CR to LF.
+4. Insert at the current cursor, replacing the current selection when one exists.
+5. Preserve all intentional leading, internal, repeated, and trailing line breaks according to the agreed round-trip rules.
+6. Apply the same paragraph line-height and margin policy used for manually entered paragraphs.
+7. Keep cursor placement predictable, normally at the end of the inserted text.
+8. Keep current-line highlighting and line numbers in sync.
+9. Update scrollbar range and cursor visibility after the document layout has settled.
+10. Mark the document modified exactly once as an ordinary edit.
+11. Make the complete paste, including any required format normalization, one logical undo step.
+12. Support pasting into an empty document, into the middle of a paragraph, at the start/end of a paragraph, over a selection, and adjacent to empty paragraphs.
+
+For non-text MIME data, follow an explicitly documented policy. Since Slate is a plain-text editor, do not insert images or rich document objects. If no supported text representation exists, ignore the paste safely or use Qt's base behaviour only if it cannot introduce non-text content.
+
+C. Copy and cut
+- Copy exports the selected text as plain text.
+- Copy must not export editor colors, font information, block formatting, HTML, or embedded objects.
+- Newline separators in clipboard text must be consistent and documented; use LF as the canonical application representation.
+- Cut must copy plain text and remove the selection as one normal undoable edit.
+- Selection boundaries spanning paragraphs must retain their exact logical newline structure.
+
+D. Undo/redo
+- A multiline paste must undo in one action and redo in one action.
+- Enter operations must be undoable.
+- Formatting maintenance must not create separate user-visible undo entries.
+- Applying editor appearance settings must not mark an otherwise clean file as modified.
+- Undo/redo must restore text and paragraph boundaries exactly.
+
+E. Formatting after insertion
+Do not try to repair pasted blocks synchronously from a generic blockCountChanged signal. The reference implementation deliberately disabled that approach because formatting during Qt's empty-block insertion could interfere with consecutive blank lines.
+
+Instead, use a controlled operation boundary:
+- begin an edit transaction;
+- perform the normalized text insertion;
+- identify affected document blocks;
+- apply the editor's paragraph-format policy to those blocks;
+- end the transaction;
+- restore the cursor;
+- allow/update document layout and repaint.
+
+Avoid reformatting the entire document after every keypress or paste unless profiling demonstrates that it is necessary. For font or global line-height changes, update all document blocks safely and efficiently.
+
+============================================================
+7. LINE HEIGHT AND PARAGRAPH SPACING
+============================================================
+
+Provide a configurable line-height multiplier. The intended default is 1.4, meaning approximately 140% of the font's natural line height.
+
+Also support:
+- pixels_above: extra paragraph space above each paragraph/block;
+- pixels_below: extra paragraph space below each paragraph/block;
+- line_distance: optional additional vertical spacing, if retained.
+
+Define the exact semantics of each setting in comments and user documentation. Do not let the same spacing be added twice through both line height and paragraph margins.
+
+Important correction to the reference design:
+The old code computes a pixel height from QFontMetrics(document()->defaultFont()).lineSpacing(), multiplies it by the configured multiplier, adds line_distance, then applies QTextBlockFormat::FixedHeight. This makes the block height fixed in pixels based on the document default font. It can become too small for taller fallback fonts or glyphs and can behave unexpectedly when fonts or font metrics change.
+
+For the rewrite, prefer a proportional line-height model where technically appropriate:
+- A multiplier of 1.4 maps to 140 percent.
+- Evaluate QTextBlockFormat::ProportionalHeight (for example, 140.0) for proportional line spacing.
+- Use MinimumHeight only if the intended semantics are a minimum line box rather than a proportional line height.
+- Use fixed pixel height only if there is a clearly documented reason and it is proven not to clip glyphs or fallback fonts.
+
+If an extra pixel-based line_distance option is kept, define how it combines with proportional height. If the combination cannot be implemented cleanly, either implement it as a separate paragraph spacing feature or deprecate it with a clear migration note. Do not silently ignore it.
+
+Font changes must update the layout and line-number geometry. Pasted Unicode text, combining marks, emoji, and fallback-font glyphs must not be vertically clipped by an undersized fixed line height.
+
+All existing paragraphs and newly created paragraphs must use the same configured metrics. The line-height setting must not change the actual plain-text content.
+
+Configuration values must be validated and clamped to sensible ranges. Reject NaN/infinite values. Use one validation policy in both configuration parsing and editor setters.
+
+============================================================
+8. LINE NUMBERS, CURRENT-LINE HIGHLIGHT, AND EDITOR LAYOUT
+============================================================
+
+A. Line numbers
+- Implement a left-side line-number gutter.
+- Number logical paragraphs/blocks, not visual wrapped rows.
+- Recalculate gutter width when the document's logical line count crosses a digit boundary (9 to 10, 99 to 100, etc.).
+- Scroll the gutter vertically with the text viewport.
+- Keep numbers vertically aligned with the corresponding paragraph even when paragraph spacing and line height are changed.
+- Repaint only the necessary region when practical, but correctness is more important than micro-optimization.
+- Hiding line numbers must reclaim the gutter width cleanly without changing the document's text or line-height settings.
+- Do not assume a wrapped paragraph occupies only one visual row when calculating drawing positions.
+
+B. Current-line highlight
+- Highlight the logical paragraph containing the cursor.
+- Extend the highlight across the text viewport width.
+- Use the configured current-line color if valid; otherwise derive a subtle color from the editor background.
+- Update on cursor movement, selection changes, document changes, and relevant palette/configuration changes.
+- Respect read-only state if one is introduced.
+
+C. Viewport and margins
+- Keep gutter geometry, viewport geometry, and editor borders synchronized on resize.
+- Recalculate after font, line-number visibility, border, DPI, and window-size changes.
+- Use logical Qt widget coordinates and avoid unnecessary hard-coded assumptions about physical pixels.
+- The bottom inset must be intentional and independently configurable.
+- Do not make the bottom gap appear only in maximized mode.
+- Do not overlap the editor viewport with the status bar.
+- Ensure the final visible line can be scrolled fully into view.
+- Check vertical scrollbar maximum/range after pasting a large document.
+
+D. Resizing and window states
+The GUI must be correct in:
+- normal/restored window;
+- maximized window;
+- full-screen mode;
+- small supported window dimensions;
+- high-DPI display scaling.
+
+The editor must use the available central-widget geometry. Avoid fixed bottom spacers and geometry calculations that assume a maximized screen.
+
+============================================================
+9. MAIN WINDOW, MENUS, AND USER INTERACTIONS
+============================================================
+
+Provide a traditional menu bar with the following menus and actions.
+
+FILE MENU
+- New (Ctrl+N)
+- Open... (Ctrl+O)
+- Save (Ctrl+S)
+- Save As... (Ctrl+Shift+S)
+- Quit (Ctrl+Q)
+
+EDIT MENU
+- Find... (Ctrl+F)
+- Find Next (F3)
+- Go to Line... (Ctrl+G)
+- Reload Config (Ctrl+R)
+- Toggle Word Wrap (Ctrl+W)
+- Toggle Block Cursor (Ctrl+B)
+- Increase Font (Ctrl++)
+- Decrease Font (Ctrl+-)
+
+VIEW MENU
+- Full Screen (F11)
+- Show Line Numbers (Ctrl+L)
+- Highlight Current Line (Ctrl+H)
+- Show Status Bar (Ctrl+Shift+B)
+
+Shortcut details:
+- Shortcuts should be configurable in the INI file.
+- Validate shortcut strings.
+- If a configured shortcut is invalid, retain the default and report the issue.
+- Avoid duplicate/conflicting shortcuts where possible; report conflicts clearly.
+- Reloading configuration must update QAction shortcuts as well as editor settings. The existing code reloads KeyBindings but creates menu actions only once, so shortcut changes do not necessarily reach the existing QActions. Correct this.
+
+File behaviour:
+- New creates an empty untitled document after the unsaved-changes decision.
+- Open opens a selected supported text file as UTF-8.
+- Save writes UTF-8 plain text to the current path.
+- Save As chooses a new path and then makes it the current file.
+- The window title displays "slate — <filename>" or "slate — Untitled".
+- Append a modified indicator such as "[modified]" when appropriate.
+- Closing, opening another file, or creating a new document must not silently discard unsaved changes.
+- Save failures must leave the document marked modified and preserve its current path/state correctly.
+- File I/O errors must be shown clearly to the user.
+
+Search behaviour:
+- Find opens a simple text-entry dialog.
+- Find Next repeats the most recent search.
+- If a search reaches the end, wrap to the beginning and report the wrap when useful.
+- Report not found without moving to an unrelated location.
+- Go to Line accepts a 1-based logical line number from 1 to the current document block count.
+- Move the cursor to the start of the selected logical line and ensure it is visible.
+
+Font actions:
+- Increase font by one point.
+- Decrease font by one point, with a sensible minimum (the reference uses 6 pt).
+- Font changes must update tab-stop width, cursor width if block cursor is enabled, line-height metrics, line-number gutter width, and viewport rendering.
+
+Cursor:
+- Normal beam cursor is the default.
+- Optional block cursor uses a block-width cursor sized to approximately one monospace character.
+- Toggling cursor style must not corrupt the document or alter text.
+- Cursor flashing changes should be handled carefully; do not globally disrupt other application widgets unnecessarily.
+
+Status bar:
+- Optional bottom status bar.
+- When visible, display 1-based logical line and column, e.g. "Ln 12, Col 5".
+- Update on cursor movement and after paste, undo/redo, go-to-line, and document load.
+- The status bar must not be confused with editor bottom padding.
+
+============================================================
+10. FILE FORMATS, LOADING, SAVING, AND MULTIPLE PATHS
+============================================================
+
+Slate is a plain-text editor. The primary file format is UTF-8 plain text.
+
+Loading:
+- Read UTF-8 robustly.
+- Handle LF, CRLF, and CR line endings consistently.
+- Normalize internal text to LF/document paragraph boundaries.
+- Do not insert a visible BOM character into the document. Decide whether to accept and strip a UTF-8 BOM on load, and document the policy.
+- After loading, apply configured paragraph presentation without marking the file modified.
+
+Saving:
+- Save plain text only.
+- Never write the document's internal rich-text/HTML representation.
+- Use UTF-8.
+- Apply a clearly documented line-ending output policy (recommended: LF for deterministic behaviour; platform-native conversion is acceptable only if deliberate and tested).
+- Use safe file-writing practices where appropriate, such as QSaveFile, so a failed write does not destroy the prior file.
+- Mark clean only after a successful save.
+
+Multiple paths on command line:
+- The current application has one editor and no tabs. Preserve that constraint unless a tab system is explicitly added later.
+- If multiple paths are supplied, do not pretend that all are open simultaneously.
+- Choose and document one clear behaviour: preferably open the first file and report that additional files are unsupported, or open the last file while explicitly documenting it. A future tabs feature is out of scope.
+- Do not read every file twice or silently discard earlier documents.
+- Check every path and show a useful error for files that cannot be opened.
+
+============================================================
+11. CONFIGURATION FILE AND DEFAULTS
+============================================================
+
+Use QSettings with INI format or an equivalent well-structured parser. Preserve a simple, human-editable config.ini.
+
+Configuration discovery order in the reference project:
+1. ./config.ini in the current working directory.
+2. QStandardPaths::ConfigLocation + /slate/config.ini (commonly ~/.config/slate/config.ini on Linux).
+3. /etc/slate/config.ini.
+4. If none exists, use built-in defaults and report the active/missing path accurately.
+
+Support an explicit --config PATH override, which takes precedence over discovery.
+
+Suggested example configuration:
+
+[editor]
+wordwrap=true
+border_size=8
+border_color=#313244
+background_color=#1e1e2e
+current_line_color=#313244
+line_number_color=#6c7086
+text_color=#cdd6f4
+block_cursor=false
+font_family=Monospace
+font_size=12
+line_height=1.4
+pixels_above=0
+pixels_below=0
+line_distance=0
+show_line_numbers=true
+highlight_current_line=true
+show_statusbar=true
+
+[shortcuts]
+new_file=Ctrl+N
+open=Ctrl+O
+save=Ctrl+S
+save_as=Ctrl+Shift+S
+quit=Ctrl+Q
+find=Ctrl+F
+find_next=F3
+goto_line=Ctrl+G
+reload_config=Ctrl+R
+toggle_wordwrap=Ctrl+W
+toggle_block_cursor=Ctrl+B
+increase_font=Ctrl++
+decrease_font=Ctrl+-
+fullscreen=F11
+toggle_line_numbers=Ctrl+L
+toggle_current_line=Ctrl+H
+toggle_statusbar=Ctrl+Shift+B
+
+Required configuration behaviour:
+- One canonical defaults definition.
+- A missing config file must use exactly the same values shown by --print-config.
+- Partial config files should override only keys they contain; all other values remain canonical defaults.
+- Invalid values should be rejected with a warning and safe fallback.
+- Config reload must update the editor and the active menu shortcuts.
+- Reload must not modify document text, dirty state, undo stack, or cursor position unnecessarily.
+- Colors must be validated.
+- Font size, margins, line height, border size, and line distance must be range-checked.
+- Avoid silently accepting non-finite numeric values.
+
+The reference accepts line_height values between 0 and 10 in ConfigManager, while the Editor setter clamps the value between 0.5 and 5.0. Use one consistent validation range and expose the actual effective value.
+
+============================================================
+12. COMMAND-LINE AND LINUX INTEGRATION
+============================================================
+
+Support:
+
+slate [files...]
+slate --config PATH [files...]
+slate --print-config
+slate --print-config-paths
+slate --help
+slate --version
+
+--print-config:
+- Print the complete canonical default config to stdout and exit successfully.
+- Generate it from the same defaults object used at runtime. Do not maintain a second hand-written list of values.
+
+--print-config-paths:
+- Show the configuration search order.
+- Mark each path as found or missing.
+- Show the active path and whether built-in defaults are being used.
+
+Linux desktop integration:
+- Provide a valid .desktop launcher named Slate Editor.
+- The Exec field must reference the actual installed executable named slate, not an unrelated or misspelled binary path.
+- Support file arguments using %F if multiple file arguments are accepted.
+- Set Terminal=false and use a standard text-editor icon where available.
+- Ensure CMake install rules install the executable and desktop file to sensible locations.
+
+============================================================
+13. ARCHITECTURE AND SOURCE ORGANIZATION
+============================================================
+
+Use a small, readable, maintainable architecture. A suggested layout is:
+
+slate/
+  CMakeLists.txt
+  README.md
+  LICENSE (only if a license is chosen; do not invent an existing license)
+  config.example.ini
+  packaging/
+    slate.desktop
+  src/
+    main.cpp
+    MainWindow.h
+    MainWindow.cpp
+    Editor.h
+    Editor.cpp
+    ConfigManager.h
+    ConfigManager.cpp
+    KeyBindings.h
+    KeyBindings.cpp (if it improves separation)
+    TextNormalization.h
+    TextNormalization.cpp (or a small tested utility)
+  tests/
+    CMakeLists.txt
+    tst_textnormalization.cpp
+    tst_editor.cpp
+    tst_configmanager.cpp
+
+You may adjust the exact file layout, but preserve clear separation of responsibilities:
+- Application startup and command-line parsing.
+- Main-window actions and menus.
+- Text editing, document formatting, clipboard and gutter.
+- Configuration parsing and validation.
+- Shortcut management.
+- Newline normalization and serialization helpers.
+
+Avoid a giant MainWindow class or a monolithic Editor implementation. Avoid unnecessary frameworks, dependencies, and abstractions.
+
+Use RAII and Qt parent-child ownership correctly. Avoid manual delete for QObject children when parent ownership already handles lifetime. Use const references and clear names where appropriate. Avoid duplicated file-loading logic and duplicated configuration defaults.
+
+============================================================
+14. BUILD SYSTEM AND DEPENDENCIES
+============================================================
+
+Use:
+- CMake 3.16 or newer.
+- C++17.
+- Qt 6 Widgets.
+- Qt 6 Test for automated tests if available.
+
+The application must build as an executable called slate.
+
+A standard build should be possible with commands similar to:
+
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+
+Run tests with:
+
+ctest --test-dir build --output-on-failure
+
+Use AUTOMOC as needed. Do not depend on Qt modules that are not required. State the exact Qt development packages needed on Linux (for example, the Qt 6 Widgets and Qt 6 Test development packages).
+
+============================================================
+15. KNOWN DEFECTS IN THE REFERENCE IMPLEMENTATION THAT MUST NOT BE REPEATED
+============================================================
+
+1. Clipboard paste does not have a deliberate custom plain-text insertion path. Enter has special formatting code, but paste does not receive equivalent post-insertion formatting treatment.
+
+2. The blockCountChanged handler is intentionally empty. Do not turn it into a synchronous formatting hook that breaks consecutive empty paragraphs. Format affected blocks at controlled editing-operation boundaries instead.
+
+3. Enter inserts a QTextBlock manually and applies FixedHeight formatting. Do not assume this automatically makes paste, load, and all other insertion paths consistent.
+
+4. FixedHeight line boxes are calculated from the document default font. This can be too small for fallback-font glyphs or changed font metrics. Prefer a well-defined proportional model or justify another strategy and test it.
+
+5. Runtime EditorConfig defaults conflict with the default config text printed by main.cpp and partly conflict with the Editor constructor. Remove all duplicated/conflicting defaults.
+
+6. ConfigManager accepts a wider line-height range than Editor actually uses. Unify validation and effective values.
+
+7. MainWindow::openFiles() reads/loads paths in two loops. It can load documents more than once and discards all but one document because there are no tabs. Replace it with one clear path-handling implementation.
+
+8. openFilesAndMaximize() opens supplied paths by repeatedly loading into the same Editor, so only the final successfully loaded file remains. Do not imply that multiple files are open simultaneously.
+
+9. The desktop entry's Exec field in the reference points to /usr/bin/s3 even though the CMake executable is named slate. Fix the launcher to point to the actual installed binary.
+
+10. Config reload replaces the KeyBindings object, but menu QActions were created earlier. Update action shortcuts when configuration reloads.
+
+11. The editor uses the same border-size value for left, top, right, and bottom viewport margins. Separate the layout concepts and verify that bottom spacing is not mistaken for status-bar space.
+
+12. The bottom-space symptom has not been proven to be a single defect. The reference uses setViewportMargins(left, border, border, border), and the no-config border default is 20 instead of the printed default of 8. Status-bar visibility defaults also differ. Rebuild the layout so the cause is explicit and test normal/maximized/full-screen states. Do not claim a particular visual root cause without reproducing it.
+
+13. The reference has no automated tests. Add tests for normalization, plain-text paste, document structure, formatting, configuration defaults, and serialization.
+
+14. Avoid redundant calls to reapplyLineHeight after setPlainText if the new setPlainText/load pathway already applies formatting.
+
+============================================================
+16. AUTOMATED TESTS AND ACCEPTANCE CRITERIA
+============================================================
+
+Create automated tests wherever Qt Test can exercise the behaviour. Add manual GUI test instructions for geometry and rendering cases that are difficult to assert automatically.
+
+A. Newline normalization unit tests
+- LF input remains LF.
+- CRLF becomes one LF, not two.
+- CR becomes LF.
+- Mixed CRLF/CR/LF becomes a consistent LF sequence.
+- Leading newline is preserved.
+- Trailing newline is preserved according to policy.
+- Multiple consecutive newlines are preserved.
+- Empty input remains empty.
+
+B. Editor Enter tests
+- Enter in a non-empty paragraph creates one new block.
+- Enter in an empty paragraph creates one additional empty block.
+- Repeated Enter creates the exact expected number of empty blocks.
+- Enter with a selection replaces the selection as expected.
+- Undo and redo restore the exact text and block count.
+
+C. Clipboard tests
+- Paste simple single-line text.
+- Paste text with LF.
+- Paste text with CRLF.
+- Paste text with CR.
+- Paste mixed newline formats.
+- Paste multiple consecutive blank lines.
+- Paste leading and trailing newline characters.
+- Paste into an empty document.
+- Paste at the start, middle, and end of an existing paragraph.
+- Paste over a multi-paragraph selection.
+- Paste Unicode, combining characters, and emoji.
+- Copy produces plain text, not HTML or editor styling.
+- Cut copies plain text and removes the selection.
+- A multiline paste is one undo step and one redo step.
+- Document modified state becomes true after paste and returns clean after undo to the saved state.
+
+D. Text round-trip tests
+- Load a UTF-8 file, then save it, and verify content according to the newline policy.
+- Empty files work.
+- Files containing blank lines work.
+- Files containing non-ASCII text work.
+- A trailing newline is preserved according to the documented policy.
+- Saving uses the expected encoding and line endings.
+- Paragraph formatting never appears in saved output.
+
+E. Formatting tests
+- Existing and newly added blocks use the same configured line-height.
+- Pasted blocks receive the configured line-height.
+- Empty blocks retain the configured spacing.
+- Changing font size updates line layout and gutter alignment.
+- Increasing/decreasing line height does not change document text.
+- Tall fallback-font glyphs are not clipped.
+- Applying display formatting does not mark a clean document modified or add unwanted undo entries.
+
+F. Configuration tests
+- Runtime defaults equal --print-config defaults.
+- Partial config overrides only specified keys.
+- Missing config uses canonical defaults.
+- Invalid colors, font sizes, margins, shortcut strings, and line-height values are handled safely.
+- Reload applies editor settings and shortcuts.
+- Reload does not mark the document modified.
+
+G. Window/layout manual tests
+- Normal window around 900 x 600.
+- Maximized window.
+- Full-screen window.
+- Minimum supported dimensions.
+- Status bar on/off.
+- Line numbers on/off.
+- Word wrap on/off.
+- Different font sizes and line-height values.
+- Short documents and very long documents.
+- Paste a large multiline document and scroll to the final line.
+- Verify no unexpected bottom blank region, clipped final line, overlapping status bar, or gutter misalignment.
+
+The application is accepted only when the above behaviours are either automatically verified or explicitly documented as manual tests that have been performed.
+
+============================================================
+17. REQUIRED DELIVERABLES
+============================================================
+
+Produce all of the following:
+
+1. Complete compilable C++ source code for the rewritten Slate application.
+2. CMakeLists.txt with proper Qt6 dependencies and install targets.
+3. Example configuration file containing all supported options and documented defaults.
+4. Valid Linux desktop entry file pointing to the installed slate executable.
+5. Automated Qt tests for newline conversion, editing, clipboard insertion, configuration, and serialization.
+6. README.md with project description, dependencies, build commands, run commands, configuration paths, keyboard shortcuts, and troubleshooting.
+7. A concise technical design note explaining the document/newline model, clipboard pipeline, paragraph formatting model, and layout/margin model.
+8. A summary of defects corrected from the reference implementation.
+
+Do not merely describe these files. Create them in the project tree and ensure that the project configures and builds. If the environment does not have Qt 6 installed, still create the complete source and tests, run all checks that are possible, and clearly report that compilation could not be verified because of the missing dependency. Never claim that unrun tests passed.
+
+============================================================
+18. IMPLEMENTATION WORKFLOW
+============================================================
+
+Follow this sequence:
+
+Step 1: Inspect the available repository and identify its current files and build environment.
+Step 2: Establish the canonical configuration defaults and document newline/serialization policy.
+Step 3: Design the editor/document architecture before writing the clipboard code.
+Step 4: Implement newline normalization and test it independently.
+Step 5: Implement document loading, saving, and plain-text round-tripping.
+Step 6: Implement Enter, paste, copy, cut, undo, and redo consistently.
+Step 7: Implement paragraph line-height and spacing with a clearly defined model.
+Step 8: Implement line numbers, current-line highlighting, and resize-safe layout.
+Step 9: Implement MainWindow menus, file operations, search, status bar, and shortcuts.
+Step 10: Implement configuration parsing, defaults, reload, and CLI options.
+Step 11: Implement Linux desktop integration and CMake install rules.
+Step 12: Add and run tests. Fix failures rather than weakening tests to make them pass.
+Step 13: Review the complete project for duplicated code, stale comments, inconsistent defaults, unsafe ownership, and unfinished functionality.
+Step 14: Provide final build/run instructions and a clear implementation report.
+
+When working in an existing workspace, preserve unrelated user files. Do not overwrite files outside the project. Before replacing a project file, inspect it. Keep all generated project files under the requested project directory.
+
+============================================================
+19. FINAL INSTRUCTIONS TO THE AI DEVELOPER
+============================================================
+
+Build Slate as a reliable, minimal, native Qt6 plain-text editor. Keep the visual identity of the reference application, but do not copy its defects.
+
+The highest-priority requirements are:
+
+1. Manual Enter and multiline paste must create the same logical paragraph structure.
+2. CRLF, CR, and LF clipboard/file input must be normalized without adding or losing blank lines.
+3. Copy, cut, paste, undo, and redo must operate on plain text predictably.
+4. Pasted paragraphs must receive the same line-height and spacing as manually created paragraphs.
+5. Font changes and Unicode fallback glyphs must not be clipped by fixed line-height assumptions.
+6. GUI refresh after paste must correctly update text layout, cursor, line numbers, scrollbar, current-line highlight, and status bar.
+7. The bottom editor margin, gutter, and status bar must be separate layout concepts. No unexplained bottom space may appear only when maximized.
+8. Runtime configuration defaults, example configuration, and --print-config output must agree exactly.
+9. Opening multiple paths must not silently read files twice or imply tabs when tabs do not exist.
+10. The application must build, have automated tests, and include clear documentation.
+
+Make practical engineering decisions, explain them briefly, and prioritize correctness and maintainability over cleverness. Do not add features outside the stated scope. Deliver working code, not just a proposal.
+
+END OF MASTER PROMPT
