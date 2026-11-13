@@ -1,0 +1,1349 @@
+QSLATE — MASTER AI DEVELOPMENT PROMPT
+CREATE A NATIVE QT 6 PLAIN-TEXT EDITOR FROM SCRATCH
+TARGET: UBUNTU 26.04 LTS (RESOLUTE RACCOON)
+
+======================================================================
+0. HOW TO USE THIS PROMPT AND WHICH INPUTS ARE AUTHORITATIVE
+======================================================================
+
+Act on this document as the complete product and engineering specification
+for a new application named QSlate. Implement the application; do not merely
+write a proposal, architecture essay, mock-up, or isolated code snippets.
+
+The user supplied three reference files:
+
+1. 11--slate_editor_rebuild_prompt.txt
+   The original Slate rebuild specification.
+
+2. 12--slate_editor_rebuild_prompt_with_window_border_requirements.txt
+   The expanded Slate specification. Its additional section about the editor
+   surround/border, safe Qt painting, border-color reload, and border tests is
+   authoritative and must be retained.
+
+3. config.ini
+   The user's preferred runtime configuration. Its values and shortcut
+   spellings are intentional and take precedence over conflicting example
+   defaults in either Slate prompt.
+
+Apply the following precedence rules:
+
+A. This QSlate prompt defines the new project identity, executable name,
+   target platform, architecture, and explicit implementation decisions.
+B. The expanded Slate prompt supplies the feature and defect-correction
+   requirements unless this QSlate prompt explicitly changes them.
+C. The user's supplied config.ini is the canonical preferred configuration.
+D. When an omitted detail genuinely has no answer in these sources, make a
+   conservative engineering decision, document it, and apply it consistently.
+
+Migration from Slate to QSlate is a complete naming change, not a source-code
+fork that leaves old product names in user-visible places:
+- Project/display name: QSlate
+- Application/binary name: qslate
+- CMake project and executable target: QSlate / qslate
+- User configuration directory: qslate
+- System configuration directory: /etc/qslate
+- Desktop entry: qslate.desktop
+- Desktop launcher name: QSlate Text Editor
+- README, help text, diagnostics, window title, package metadata, and source
+  comments must use QSlate where they refer to the new product.
+- Do not create an executable named slate or retain an incorrect desktop Exec
+  path from the reference project.
+
+Do not silently replace the supplied configuration with the generic defaults
+in the reference prompt. In particular, the supplied values intentionally
+prefer a 20-pixel editor surround, Monaco at 18 pt, a block cursor, hidden line
+numbers, and a hidden status bar. Those are QSlate's initial built-in defaults
+unless the user changes them in config.ini.
+
+======================================================================
+1. ROLE, OBJECTIVE, AND DEFINITION OF DONE
+======================================================================
+
+Act as a senior C++17, Qt 6 Widgets, CMake, and Linux desktop application
+architect and implementation engineer.
+
+Create a complete, maintainable, working rewrite of the lightweight Slate
+plain-text editor, renamed QSlate, from scratch. Preserve its focused character
+and intended features while correcting document, Enter, clipboard, newline,
+formatting, configuration, keyboard shortcut, window-border, painting, and
+layout defects described in the reference material.
+
+The output must be a real native Linux desktop application. It must not be a
+web application, Electron wrapper, browser page, proof of concept, static UI,
+or code-only answer. Create every source file, build file, test, desktop entry,
+example configuration, and documentation file required by this specification.
+Do not leave core functions as TODOs, stubs, pseudocode, or comments saying
+that the feature will be implemented later.
+
+Definition of done:
+- The complete source tree exists under one QSlate project directory.
+- The project configures with CMake against Qt 6 on Ubuntu 26.04.
+- The qslate executable builds, launches, and provides the specified editing
+  behaviour.
+- The supplied config.ini values are honoured as canonical defaults.
+- The automated Qt tests are implemented and run; failures are fixed rather
+  than hidden or disabled.
+- GUI cases that cannot be reliably asserted by automated tests are listed as
+  manual test procedures. Never claim a manual test has passed unless it was
+  actually performed.
+- The final report states exactly what was built, tested, not tested, and any
+  remaining limitation. Never claim a successful build or test that was not
+  executed.
+
+======================================================================
+2. PRODUCT IDENTITY, PURPOSE, AND SCOPE
+======================================================================
+
+Product: QSlate
+Executable: qslate
+Product type: lightweight native desktop plain-text editor
+Primary platform: Ubuntu 26.04 LTS desktop
+GUI framework: Qt 6 Widgets
+Language: C++17
+Build system: CMake
+Configuration format: human-editable INI
+Primary file encoding: UTF-8
+
+QSlate is a fast, uncluttered, keyboard-friendly editor for ordinary text and
+source files. It should feel like a focused writing/editing surface rather
+than a full IDE. It should start quickly, use a restrained dark appearance,
+allow control of typography and paragraph spacing, and keep the editing area
+visually clean.
+
+QSlate edits plain text. It is not a word processor. It must never silently
+save HTML, rich-text formatting, images, tables, embedded objects, or other
+presentation data as part of the document.
+
+Keep the product intentionally small:
+- One main application window.
+- One active document/editor at a time.
+- Traditional File, Edit, and View menus.
+- One central text editor.
+- Optional logical-line-number gutter.
+- Optional current-logical-line highlighting.
+- Optional status bar.
+- Configurable font, font size, line height, paragraph spacing, colors,
+  editor surround, and shortcuts.
+- UTF-8 plain-text open/save.
+- A small INI configuration file with reload support.
+- Command-line support for opening a file and inspecting configuration paths.
+
+Out of scope unless explicitly requested later:
+- Tabs or multiple simultaneously open documents.
+- Split panes.
+- Project/file explorer.
+- Syntax highlighting.
+- Terminal or shell integration.
+- Plugins or scripting engine.
+- Toolbar.
+- Rich-text or word-processing features.
+- Cloud synchronization or network storage.
+- Automatic formatting of source code.
+
+Do not add unrelated features simply because Qt makes them easy to add.
+
+======================================================================
+3. TARGET PLATFORM AND TOOLCHAIN
+======================================================================
+
+Primary target:
+- Ubuntu 26.04 LTS, codename Resolute Raccoon.
+- Use the Qt 6 packages provided by the Ubuntu 26.04 repositories as the
+  normal supported build path.
+- The current Ubuntu 26.04 archive listing at the time this specification was
+  prepared contains Qt 6.10.2 packages. Do not hard-code a dependency on that
+  exact patch version; accept a compatible Qt 6 release supplied by the OS.
+- Do not fall back to Qt 5.
+- Support the normal Ubuntu desktop session, including Wayland and X11 where
+  the installed Qt platform plugin supports them.
+- Respect high-DPI scaling and Qt logical-pixel coordinates.
+
+Compiler and build requirements:
+- C++17, required and enforced by CMake.
+- CMake 3.16 or newer; use modern Qt 6 CMake targets and avoid deprecated
+  Qt 5-era APIs.
+- Qt 6 Core, Gui, Widgets, and Test (Test for the automated test targets).
+- CMake AUTOMOC enabled where Q_OBJECT is used. AUTOUIC/AUTORCC may be enabled
+  if needed, but do not create empty .ui/.qrc files just to enable them.
+- Prefer Ninja when available, but keep the project generator-neutral.
+- Do not add dependencies that are not needed by this small application.
+
+Expected Ubuntu development packages:
+
+    sudo apt update
+    sudo apt install build-essential cmake ninja-build pkg-config \
+        qt6-base-dev qt6-base-dev-tools
+
+Use the actual package availability and installed Qt version on the target
+machine as the source of truth. If a package name has changed in a later
+Ubuntu update, inspect apt-cache and use the correct supported package; do
+not invent package names. The Qt base development package provides the base
+Qt modules required for Widgets and Qt Test on the Ubuntu packaging baseline.
+
+Before implementation, inspect the actual environment:
+- Ubuntu release information (/etc/os-release).
+- Compiler version.
+- CMake version.
+- Installed Qt 6 version and Qt CMake package paths.
+- Whether Ninja is installed.
+- Whether Qt Test is available.
+- Whether an existing source repository/project directory is present.
+
+Do not overwrite unrelated user files. If a QSlate directory already exists,
+inspect it before changing or replacing files.
+
+======================================================================
+4. USER INTERFACE AND VISUAL DESIGN
+======================================================================
+
+Create a restrained dark interface with a central text-editing area and no
+unnecessary visual decoration.
+
+The supplied palette is canonical:
+- Editor text viewport background: #1e1e2e
+- Editor surround/border color: #313244
+- Gutter background: #313244
+- Current-line highlight: #313244
+- Line-number foreground: #6c7086
+- Main text foreground: #cdd6f4
+
+Use Monaco at 18 points as the configured font request. Font resolution must
+be robust if Monaco is not installed. Do not silently discard the configured
+font family in the INI file. Keep the requested value in configuration and
+choose a clearly documented, available monospace fallback for actual display
+when the family is unavailable. Report the fallback in a non-disruptive
+warning/diagnostic rather than failing to launch.
+
+Initial window geometry:
+- Normal initial size approximately 900 x 600 logical pixels.
+- Minimum size approximately 400 x 300 logical pixels.
+- One central editor fills all available central-widget space.
+- Menu bar at the top.
+- Status bar at the bottom only when enabled.
+- Gutter on the left only when enabled.
+- No toolbar.
+- No unexplained blank strip, oversized bottom area, or fixed spacer used to
+  conceal a geometry error.
+
+The application must lay out correctly when:
+- Restored to normal window size.
+- Maximized.
+- Full screen.
+- Resized to minimum supported dimensions.
+- Displayed at high-DPI scaling factors.
+- The line-number gutter or status bar is toggled.
+- Font, line height, word wrapping, or editor surround settings change.
+
+Keep these geometry concepts separate:
+- Editor content inset/top padding.
+- Left gutter width.
+- Right editor surround/inset.
+- Bottom editor content inset.
+- Outer editor surround/border thickness.
+- Main-window status-bar height.
+
+Do not use one border-size value as an accidental substitute for every
+viewport margin. Document which widget owns each region and how its geometry
+is calculated.
+
+======================================================================
+5. CANONICAL CONFIGURATION: THE USER'S PREFERRED config.ini
+======================================================================
+
+The following values are authoritative. Use them as the single canonical
+built-in defaults object in the application. The same object must drive:
+- Runtime startup defaults.
+- ConfigManager defaults.
+- --print-config output.
+- config.example.ini (including values and key names).
+- Configuration tests.
+- README configuration documentation.
+
+Do not copy these values into several independent handwritten tables. Define
+one canonical EditorConfig/ShortcutConfig defaults source and serialize it to
+INI for --print-config and config.example.ini generation.
+
+Exact preferred configuration supplied by the user:
+
+[editor]
+wordwrap=true
+border_size=20
+border_color=#313244
+background_color=#1e1e2e
+gutter_background_color=#313244
+current_line_color=#313244
+line_number_color=#6c7086
+text_color=#cdd6f4
+block_cursor=true
+block_cursor_blink=false
+font_family=Monaco
+font_size=18
+line_height=1.4
+pixels_above=0
+pixels_below=0
+line_distance=0
+show_line_numbers=false
+highlight_current_line=true
+show_statusbar=false
+
+[shortcuts]
+new_file=<Primary>n
+open=<Primary>o
+save=<Primary>s
+save_as=<Primary><Shift>s
+quit=<Primary>q
+undo=<Primary>z
+redo=<Primary>y
+cut=<Primary>x
+copy=<Primary>c
+paste=<Primary>v
+find=<Primary>f
+find_next=F3
+goto_line=<Primary>g
+reload_config=<Primary>r
+toggle_wordwrap=<Primary>w
+increase_font=<Primary>plus
+decrease_font=<Primary>minus
+fullscreen=F11
+toggle_line_numbers=<Primary>l
+toggle_current_line=<Primary>h
+toggle_statusbar=<Primary><Shift>b
+
+Treat the config shown above as the canonical initial state. In particular:
+- wordwrap is true.
+- border_size is 20 logical pixels.
+- block_cursor is true.
+- block_cursor_blink is false.
+- font_family is Monaco.
+- font_size is 18 points.
+- line_height is 1.4.
+- show_line_numbers is false.
+- highlight_current_line is true.
+- show_statusbar is false.
+- gutter_background_color is an explicit, independently configurable key.
+
+Do not substitute the conflicting reference-prompt defaults (for example,
+Monospace 12 pt, border size 8, beam cursor, visible line numbers, or visible
+status bar). Those generic defaults are superseded by this section.
+
+The supplied file does not define a toggle_block_cursor shortcut. The action
+may remain available in the Edit menu, but do not silently invent a shortcut
+for it. If a future config file explicitly supplies toggle_block_cursor, load
+and validate it. If absent, the menu action has no keyboard shortcut.
+
+The supplied configuration has no explicit bottom-padding or top-padding
+keys. Keep these dimensions internal and independently managed. Do not
+reinterpret border_size as a setting for all editor insets. If new public INI
+keys are genuinely needed, document them, choose conservative defaults, and
+add them compatibly without changing any supplied key/value above.
+
+======================================================================
+6. CONFIGURATION PARSING, VALIDATION, AND SHORTCUT SYNTAX
+======================================================================
+
+Use QSettings in IniFormat or a similarly robust INI parser. QSettings is the
+preferred implementation. Organize settings into [editor] and [shortcuts].
+
+Configuration search order:
+1. Explicit --config PATH command-line override, when supplied. This has the
+   highest priority and is the only file selected for that invocation.
+2. ./config.ini in the current working directory.
+3. QStandardPaths::ConfigLocation + /qslate/config.ini (normally
+   ~/.config/qslate/config.ini on Ubuntu).
+4. /etc/qslate/config.ini.
+5. If no usable config is found, use canonical built-in defaults.
+
+For each candidate, report whether it exists, is readable, and was selected.
+Do not report a non-existent config as the active file. If an explicit
+--config path is supplied but cannot be read, show a clear error and exit
+with a non-zero status rather than silently loading another user's config.
+For auto-discovered paths, report the problem and continue to the next
+candidate or canonical defaults according to a documented policy.
+
+Partial configuration:
+- Start with canonical defaults.
+- Override only keys explicitly present and valid in the selected file.
+- Missing keys retain canonical defaults.
+- A bad value must not corrupt the rest of the configuration.
+- Invalid values produce a concise diagnostic and fall back to the canonical
+  default for that key.
+- Do not silently coerce invalid strings to zero or empty values.
+
+Validation:
+- Parse colors as QColor and reject invalid color strings.
+- Reject NaN and infinity for every floating-point value.
+- Validate all numeric values in one shared validation function used by both
+  config parsing and editor setter APIs.
+- Use a documented range for font size, border size, paragraph spacing,
+  line_distance, and line_height. A recommended policy is font_size 6..96 pt,
+  border_size 0..100 logical px, pixels_above/pixels_below 0..200 logical px,
+  line_distance 0..100 logical px, and line_height 0.5..5.0. Use these exact
+  ranges consistently unless a technical reason requires a documented
+  adjustment.
+- Validate booleans strictly enough to avoid unexpected conversions.
+- Preserve valid configured values exactly where possible.
+- Validate shortcut syntax and detect duplicate/conflicting shortcuts.
+- When two active actions conflict, keep a deterministic winner, disable the
+  conflicting nonessential binding, and report the conflict. Never let an
+  invalid shortcut crash startup.
+
+Important shortcut-compatibility requirement:
+The supplied config uses GTK-style accelerator strings such as
+<Primary>n, <Primary><Shift>s, <Primary>plus, and <Primary>minus. These are
+not the same textual syntax as Qt's usual PortableText strings. Do not pass
+them unmodified to QKeySequence::fromString and assume they will work.
+
+Implement a dedicated, tested shortcut parser/normalizer that accepts the
+user's supplied syntax and maps it to Qt key combinations. At minimum:
+- <Primary> maps to the platform's primary Control modifier on Ubuntu.
+- <Shift> maps to Shift.
+- Letter keys are case-insensitive and map to the intended letter key.
+- F3 and F11 are accepted.
+- plus maps to Qt::Key_Plus without being confused with the separator between
+  modifiers and key names.
+- minus maps to Qt::Key_Minus.
+- Multiple modifier tags such as <Primary><Shift>s are supported.
+- Invalid or unknown tokens are rejected with a useful warning.
+- Round-trip/print output retains the preferred GTK-style spelling for the
+  supplied defaults, even if internal QKeySequence objects use Qt key codes.
+
+Do not rewrite the user's config file just to normalize shortcut syntax.
+Only save configuration if a future explicit save-settings feature is added;
+normal startup and --print-config must not modify the existing file.
+
+Configuration reload:
+- Reload all editor settings and shortcuts from the selected config path.
+- Update the visible editor, actual border-owning widget, gutter, cursor,
+  status bar, menus, and QAction shortcuts immediately.
+- QAction objects are created once; update their shortcuts when config is
+  reloaded instead of replacing a key-binding data structure without applying
+  it to the existing actions.
+- Reload must not modify document text, mark a clean document dirty, clear
+  the undo stack, change the file path, or unnecessarily move the cursor.
+- Keep checked states of checkable actions synchronized with actual settings.
+- Do not let menu state drift from configuration state.
+
+======================================================================
+7. DOCUMENT MODEL AND PLAIN-TEXT INVARIANTS
+======================================================================
+
+Maintain exactly one authoritative text document model using Qt's text
+framework. QTextEdit backed by QTextDocument is the reference approach and is
+acceptable. A different Qt editor widget is allowed only if it demonstrably
+supports every required behaviour: logical paragraph structure, line-height
+and margins, clipboard interception, undo/redo, cursor/selection handling,
+line-number mapping, and Unicode rendering. Explain the choice in the design
+note.
+
+Plain-text contract:
+- Disable rich-text acceptance.
+- Do not import clipboard HTML/rich formatting.
+- Do not save HTML or QTextDocument internal markup.
+- Do not insert images, tables, fonts, colors, or embedded objects.
+- Internal paragraph formatting is presentation only; it must not leak into
+  saved text.
+- Save/export through plain-text APIs and UTF-8 encoding.
+
+Logical newline contract:
+- One logical paragraph break corresponds to a document block boundary.
+- A visual wrapped row is not a logical newline.
+- Resizing the window or changing word wrap must never alter text content.
+- Empty paragraphs and consecutive empty paragraphs must be preserved.
+- Leading and trailing newlines must be preserved by the documented policy.
+- The document structure, not a parallel array of line strings, is the source
+  of truth.
+
+Canonical input normalization:
+1. Replace CRLF (\r\n) with LF (\n).
+2. Replace any remaining CR (\r) with LF (\n).
+3. Preserve all LF characters, including repeated, leading, and trailing LF.
+4. Insert normalized text through Qt document/cursor APIs.
+
+The order matters. Replacing CR before CRLF can accidentally turn one CRLF
+into two LF characters. Centralize this logic in a small tested utility.
+
+Canonical internal/export representation is LF. Saving writes UTF-8 with LF
+line endings for deterministic output. If a future option supports another
+line-ending mode, perform conversion only at the file-output boundary and
+test it independently.
+
+Round-trip invariant:
+For supported UTF-8 input, load/paste followed by plain-text export must
+preserve the exact logical character and paragraph-break sequence, except
+for the explicitly documented CRLF/CR-to-LF normalization and UTF-8 BOM
+policy. Empty documents, empty blocks, and a final trailing newline must be
+tested specifically.
+
+======================================================================
+8. ENTER, PASTE, COPY, CUT, UNDO, AND REDO
+======================================================================
+
+Treat keyboard editing and clipboard editing as equally important. This is a
+high-priority area and must be implemented deliberately rather than relying
+on accidental default QTextEdit behaviour.
+
+A. Enter/Return
+- Pressing Enter or Return inserts exactly one logical paragraph break.
+- It works in non-empty paragraphs, empty paragraphs, adjacent empty
+  paragraphs, and at the start or end of a paragraph.
+- It works when a selection is active and replaces the selection once.
+- Repeated Enter presses create exactly the expected number of blank blocks.
+- It must not be swallowed or converted to a visual wrap.
+- Paragraph formatting is correct on both sides of the break.
+- Modified Enter combinations are not intercepted unless explicitly
+  assigned a documented meaning.
+- Enter is one normal undoable edit.
+
+B. Paste
+Implement a deliberate plain-text paste pathway. In a QTextEdit-based design,
+consider overriding insertFromMimeData(const QMimeData *source). Do not rely
+on undocumented assumptions about Qt's default rich-text paste path.
+
+Paste procedure:
+1. Check whether MIME data offers text/plain or a supported plain-text
+   representation.
+2. Read text only. Ignore HTML and rich formatting even if both plain text
+   and HTML are available.
+3. Normalize CRLF and CR to LF.
+4. Insert at the current cursor and replace the active selection when present.
+5. Preserve leading, internal, repeated, and trailing newlines exactly under
+   the canonical policy.
+6. Apply configured paragraph metrics to all affected blocks.
+7. Leave the cursor at the end of inserted text unless a documented edge case
+   requires otherwise.
+8. Refresh current-line highlighting, line numbers, gutter geometry,
+   scrollbar range, and status-bar position.
+9. Ensure the final inserted line can be scrolled fully into view.
+10. Treat the entire multiline paste as one logical undo step.
+11. Mark document modified as a normal edit; do not generate redundant
+    modification notifications.
+12. Support paste into an empty document, at the beginning/middle/end of an
+    existing paragraph, over a selection, and beside empty paragraphs.
+13. Ensure document layout and scrollbar calculations are valid after Qt has
+    completed the affected layout pass.
+
+Use an explicit edit transaction such as QTextCursor beginEditBlock/endEditBlock
+for the inserted text and related changes where appropriate. Do not allow
+formatting housekeeping to fragment one paste into several undo entries.
+
+For MIME data without text, ignore it safely. Never insert an image or rich
+document object. Do not fall back to a base paste implementation that can
+introduce rich content.
+
+C. Copy and cut
+- Copy exports the selected text only as plain text.
+- Clipboard payload must not include HTML, editor colors, fonts, paragraph
+  formatting, or embedded objects.
+- Use LF as the canonical clipboard paragraph separator.
+- Cut copies plain text and deletes the selection as one ordinary undoable
+  document edit.
+- Selection across multiple blocks must retain the intended newline sequence.
+- Empty selection handling must be safe and unsurprising.
+
+D. Undo and redo
+- A multiline paste undoes in one action and redoes in one action.
+- Enter and cut are undoable.
+- Undo/redo restores text and logical block structure exactly.
+- Formatting maintenance does not add unwanted user-visible undo entries.
+- Applying appearance-only settings does not mark a clean document modified.
+- Loading a file establishes a clean undo/modified baseline.
+- Undo back to the saved state returns the document to clean state where Qt's
+  document modified-state semantics permit it.
+
+E. Formatting after insertion
+Do not apply paragraph formatting synchronously from a generic blockCountChanged
+handler. The reference identified that doing so can interfere with Qt's
+intermediate empty-block creation and consecutive blank lines.
+
+Use controlled editing-operation boundaries:
+- Capture the cursor/affected block range.
+- Begin the edit transaction.
+- Insert normalized text or a paragraph break.
+- Identify the affected blocks.
+- Apply the configured paragraph formatting policy without corrupting the
+  text or undo model.
+- End the transaction.
+- Restore the expected cursor.
+- Allow document layout to settle and then update gutter/scroll/highlight.
+
+Do not reformat the entire document after every keystroke unless profiling
+proves it necessary. A global font or line-height change may update all blocks
+through a safe, efficient presentation-only operation.
+
+======================================================================
+9. LINE HEIGHT AND PARAGRAPH SPACING
+======================================================================
+
+The configured default line_height is 1.4, representing approximately 140%
+of the natural font line height.
+
+Support:
+- line_height: proportional line-height multiplier.
+- pixels_above: extra paragraph space above each logical block.
+- pixels_below: extra paragraph space below each logical block.
+- line_distance: retained compatibility setting; define and implement its
+  exact effect, or deprecate it explicitly with a migration note. Never
+  silently ignore a configured non-zero value.
+
+Prefer a proportional Qt paragraph-height model when suitable. Evaluate
+QTextBlockFormat::ProportionalHeight with 140.0 for a multiplier of 1.4.
+Avoid fixed pixel line heights calculated once from the default font metrics:
+they may clip tall fallback-font glyphs or behave incorrectly after font
+changes.
+
+Define the settings so spacing is not double-counted. One possible policy is:
+- line_height controls the line box within a block.
+- pixels_above and pixels_below control paragraph margins between blocks.
+- line_distance is an additional, separately documented additive line-gap
+  value only if it can be implemented without clipping and without applying
+  paragraph spacing twice.
+
+If Qt's chosen text layout engine cannot combine the requested values
+reliably, choose the safest predictable interpretation and document it.
+Never silently reinterpret one setting as another.
+
+All existing blocks, blocks created by Enter, and blocks created by paste
+must use the same presentation policy. Font changes, pasted emoji, combining
+marks, CJK text, and fallback-font glyphs must not be vertically clipped.
+
+Updating line height, font, or spacing must not alter plain-text content,
+cursor position, selection, saved state, or undo history unnecessarily.
+
+======================================================================
+10. LINE-NUMBER GUTTER, CURRENT-LINE HIGHLIGHT, AND EDITOR GEOMETRY
+======================================================================
+
+A. Logical line numbers
+- Provide an optional left-side gutter.
+- Number logical paragraphs/document blocks, not visual wrapped rows.
+- The first logical block is line 1.
+- Update the gutter when text is inserted, deleted, loaded, pasted, undone,
+  or redone.
+- Recalculate width at digit boundaries such as 9 to 10 and 99 to 100.
+- Scroll the gutter vertically with the text viewport.
+- Align each number with the top/baseline of its corresponding document block,
+  even when a paragraph wraps across multiple visual rows.
+- Derive positions from Qt document layout/block geometry rather than
+  assuming one visual row per block.
+- Hiding line numbers must reclaim the gutter width cleanly.
+- Do not let gutter visibility change text or paragraph settings.
+- Use configured gutter_background_color and line_number_color.
+
+B. Current-line highlighting
+- Highlight the logical block containing the text cursor.
+- Extend the highlight across the visible text viewport width.
+- Use current_line_color.
+- Update on cursor movement, selection changes, document edits, undo/redo,
+  load, and relevant configuration changes.
+- Do not change document text, modified state, or undo history.
+
+C. Geometry and scrolling
+- Keep gutter, editor viewport, outer surround, and status bar aligned after
+  resize, font changes, border changes, line-number toggles, DPI changes, and
+  word-wrap changes.
+- Use Qt logical coordinates and layout-managed widget geometry.
+- The final visible line must be fully reachable by scrolling.
+- Large multiline paste must update scrollbar range correctly.
+- No editor viewport may overlap the status bar.
+- No unexplained bottom gap may appear in normal, maximized, or full-screen
+  mode.
+- No fixed-height empty spacer may be introduced to conceal a layout bug.
+
+======================================================================
+11. EDITOR SURROUND, BORDER COLOR, AND SAFE QT PAINTING
+======================================================================
+
+This requirement is especially important and is carried forward from the
+expanded reference prompt.
+
+A. Distinguish the QSlate editor surround from the OS window frame
+- border_color controls QSlate's own visible editor surround/frame.
+- border_size is the thickness of that surround in Qt logical pixels.
+- border_color does NOT control the native desktop title bar, window frame,
+  window-manager decorations, or shell chrome.
+- Explain this distinction in README and technical design documentation.
+
+B. Define clear widget ownership
+- Prefer a dedicated outer frame/container widget that owns the editor and
+  paints or styles the editor surround.
+- Place the editor and gutter inside it using a layout with explicit margins.
+- Apply validated border_color to the widget that actually owns and paints
+  the surround.
+- The text viewport must independently use background_color.
+- The gutter must independently use gutter_background_color.
+- Current-line highlight and status bar retain their own configured colors.
+- Do not assume QPalette::Window automatically paints every unused area of a
+  QAbstractScrollArea/QTextEdit.
+- Do not use a status bar, blank spacer, or accidental viewport margin as a
+  substitute for the border.
+- border_size == 0 removes the surround completely and cleanly.
+- Changing border_size recalculates layout geometry but must not change text,
+  cursor, selection, undo history, or modified state.
+
+C. Respect QAbstractScrollArea and paint-event contracts
+- QTextEdit is based on QAbstractScrollArea and its text is drawn in its
+  viewport child; the outer widget and viewport are different paint devices.
+- Never construct QPainter(this) inside a viewport paint event to paint the
+  outer editor widget.
+- Never call QPainter::begin(this), fillRect(), or another painter method on
+  a widget that does not own the current paint event.
+- Never paint the outer widget from the viewport's paint event.
+- If custom painting is necessary, paint only the widget whose own paintEvent
+  is executing, or use a dedicated frame widget that paints itself.
+- Use Qt's normal frame painting, palette, stylesheet, or dedicated
+  container where appropriate.
+- Do not suppress or hide QPainter warnings. Remove the invalid painting
+  operation itself.
+- Do not add conflicting paintEvent overrides or call QFrame/QTextEdit paint
+  implementations in an unverified order.
+
+D. Runtime border behaviour
+- Parse border_color with QColor and reject invalid values.
+- Apply the valid color to the actual border-owning widget.
+- Repainting occurs immediately after border_color reload.
+- Geometry updates after border_size reload.
+- A valid configured color must not be replaced silently by a platform
+  palette default.
+- If a stylesheet is used, control selector specificity and object names so
+  no unrelated rule overrides the configured color.
+- Do not hard-code a light-grey or white border.
+
+E. Border tests
+Automated tests must verify:
+- A non-default border_color is loaded and retained in EditorConfig.
+- Applying config changes the actual border-owning widget's palette/style or
+  rendered output.
+- Reloading from one valid border color to another updates it without restart.
+- border_size 0 and a positive border size produce expected geometry.
+- Border changes do not modify text, cursor, selection, undo/redo, or dirty
+  state.
+- No invalid QPainter operation is introduced.
+
+Manual rendering checks must include:
+- Temporarily set border_color to #ff0000 and verify the editor surround is
+  visibly red.
+- Reload with border_color #00ff00 and verify it becomes green immediately.
+- Confirm viewport, gutter, current-line highlight, and status bar retain
+  their independent colors.
+- Inspect normal, maximized, full-screen, resized, and high-DPI states.
+- Confirm all intended sides have consistent thickness and no unexplained
+  bottom gap exists.
+- Launch from a terminal and verify there are no warnings such as:
+    QWidget::paintEngine: Should no longer be called
+    QPainter::begin: Paint device returned engine == 0
+    QPainter::fillRect: Painter not active
+
+======================================================================
+12. CURSOR, TAB WIDTH, WORD WRAP, AND FONT ACTIONS
+======================================================================
+
+Cursor:
+- The preferred config requests block_cursor=true.
+- Support both block and normal beam cursor modes.
+- block_cursor_blink=false means a solid, non-blinking block caret.
+- If block_cursor_blink is true, implement a local, predictable blink for
+  QSlate's own caret only. Do not globally change the application or desktop
+  cursor-flashing settings.
+- The block caret should be approximately one monospace character cell wide.
+- Its foreground/background contrast must remain legible.
+- Correctly handle caret at end of line, empty paragraphs, selection,
+  scrolling, word wrapping, focus changes, font changes, and high-DPI scale.
+- Use Qt-supported cursor APIs or a carefully isolated overlay widget with
+  its own valid paint event. Never paint through an invalid QPainter target.
+- Cursor mode changes must not alter text, selection, dirty state, or undo.
+- The optional block-cursor action is accessible from the Edit menu. Do not
+  invent a default shortcut when none is present in the supplied config.
+
+Font:
+- Initial configured family Monaco, size 18 pt.
+- Increase font by one point.
+- Decrease font by one point, with a minimum of 6 pt.
+- A font-size action changes rendering only; it does not alter document text
+  or mark the document modified.
+- Update tab-stop width, block-cursor width/geometry, line-height layout,
+  gutter width, and repaint after font changes.
+
+Tab behaviour:
+- A Tab key should use a four-space tab stop, following the reference
+  implementation's intent. Decide and document whether Tab inserts a literal
+  tab character or spaces; prefer spaces if required for predictable visual
+  width, but preserve this decision consistently in typing, paste, and tests.
+- Do not add auto-indent or code-formatting features unless requested.
+
+Word wrap:
+- Initial wordwrap=true.
+- Toggle on/off through the Edit menu and configured shortcut.
+- Visual wrapping never changes logical text or line numbers.
+
+======================================================================
+13. MAIN WINDOW, MENUS, AND USER INTERACTIONS
+======================================================================
+
+Create a QMainWindow with one central QSlate editor/container. Use a standard
+menu bar with File, Edit, and View menus.
+
+FILE MENU
+- New — configured key new_file (default from supplied config: <Primary>n).
+- Open... — open.
+- Save — save.
+- Save As... — save_as.
+- Quit — quit.
+
+EDIT MENU
+- Undo — undo.
+- Redo — redo.
+- Cut — cut.
+- Copy — copy.
+- Paste — paste.
+- Find... — find.
+- Find Next — find_next.
+- Go to Line... — goto_line.
+- Reload Config — reload_config.
+- Toggle Word Wrap — toggle_wordwrap.
+- Toggle Block Cursor — optional action, no shortcut unless explicitly
+  configured in a future INI file.
+- Increase Font — increase_font.
+- Decrease Font — decrease_font.
+
+VIEW MENU
+- Full Screen — fullscreen.
+- Show Line Numbers — toggle_line_numbers.
+- Highlight Current Line — toggle_current_line.
+- Show Status Bar — toggle_statusbar.
+
+Menu actions must have correct enabled/disabled states. Cut/copy require a
+selection. Undo/redo reflect the document undo stack. Checkable view/settings
+actions reflect the current configuration and update when configuration is
+reloaded.
+
+File behaviour:
+- New creates a clean untitled document after resolving unsaved changes.
+- Open opens one selected UTF-8 text file.
+- Save writes current document to its active path.
+- Save As selects a new destination and updates the current path only after a
+  successful write.
+- Title format: "QSlate — <filename>" or "QSlate — Untitled".
+- Append a clear modified marker such as "[modified]" when appropriate.
+- Never silently discard unsaved changes on New, Open, or Quit.
+- On Save/Discard/Cancel dialog, Cancel leaves the current document and state
+  unchanged.
+- Save failure leaves the document modified and preserves its prior path and
+  state.
+- Show file read/write errors clearly and non-destructively.
+
+Find:
+- Ctrl/Primary+F opens a simple text-entry dialog.
+- Find Next repeats the most recent search.
+- If search reaches end, wrap to start and report wrap where useful.
+- If not found, report it without jumping to an unrelated location.
+- Preserve normal selection/caret behaviour.
+
+Go to Line:
+- Accept a 1-based logical line number from 1 through the current block count.
+- Reject empty, malformed, zero, and out-of-range entries.
+- Move cursor to the start of that logical paragraph and ensure it is visible.
+
+Status bar:
+- Initial show_statusbar=false, per supplied config.
+- When enabled, display 1-based logical line and column, e.g. Ln 12, Col 5.
+- Update after cursor move, selection move, paste, Enter, undo/redo,
+  go-to-line, and document load.
+- It belongs to the QMainWindow layout, not to the editor's bottom margin.
+
+Full screen:
+- Toggle cleanly with F11/configured shortcut.
+- Restore normal/maximized state correctly when leaving full screen.
+- Avoid layout drift or lost status bar/gutter state.
+
+======================================================================
+14. FILE LOADING, SAVING, AND COMMAND-LINE PATHS
+======================================================================
+
+Primary file format: UTF-8 plain text.
+
+Loading:
+- Use robust QFile/QIODevice handling and clear error reporting.
+- Accept LF, CRLF, and CR input; normalize to LF internally.
+- Accept and strip one UTF-8 BOM at the beginning of a file. Document this
+  policy. Do not display U+FEFF as the first visible character when the BOM
+  is a file signature.
+- Invalid UTF-8 must be handled deliberately. Prefer a clear load error or a
+  documented replacement policy; do not silently corrupt text.
+- Empty files are valid.
+- Apply configured paragraph presentation after load.
+- Loading a file must leave the document clean and reset modified state.
+- Do not perform duplicate reads or duplicate setPlainText calls.
+
+Saving:
+- Save plain text only, never HTML.
+- Encode as UTF-8.
+- Write LF line endings.
+- Use QSaveFile or equivalent atomic/safe writing to avoid destroying an
+  existing file if the write fails.
+- Commit the write before marking the document clean.
+- Do not change active file path until Save As succeeds.
+- Preserve the previous file and document state on failure.
+- Ensure formatting, gutter data, and cursor state never enter saved output.
+
+Command-line path handling:
+- One editor and no tabs means only one document can be active.
+- If multiple positional paths are supplied, open the first path only and
+  report that additional paths are unsupported/ignored. Do not silently
+  load several paths in a loop into the same editor.
+- Check the selected path once, read it once, and present a useful error if
+  the file does not exist, is unreadable, or cannot be decoded.
+- Do not claim multiple files are open simultaneously.
+- Choose normal startup geometry unless an explicit project decision calls
+  for another behaviour; do not maximize merely because a path was supplied.
+
+======================================================================
+15. COMMAND-LINE INTERFACE
+======================================================================
+
+Provide:
+
+    qslate [FILE ...]
+    qslate --config PATH [FILE ...]
+    qslate --print-config
+    qslate --print-config-paths
+    qslate --help
+    qslate --version
+
+Use QCommandLineParser.
+
+--config PATH:
+- Explicit configuration-file override.
+- Takes precedence over all discovered config files.
+- Validate path and readability.
+- Report errors clearly.
+
+--print-config:
+- Print the complete canonical QSlate default INI to stdout and exit 0.
+- Generate from the same defaults structures used at runtime.
+- Use the exact supplied user values and shortcut strings in Section 5.
+- Do not require a GUI session for this command if it can be handled before
+  QApplication construction; otherwise ensure it is safe in headless mode.
+
+--print-config-paths:
+- Print configuration search order.
+- Mark each path found/missing/unreadable.
+- Show selected/active path.
+- State clearly when built-in defaults are active.
+- Do not falsely label a missing path as active.
+
+--help and --version:
+- Show QSlate product identity, correct executable name, and version.
+
+All CLI exit codes must be sensible and documented. Non-GUI CLI commands
+should be usable from a terminal without opening the main window.
+
+======================================================================
+16. ARCHITECTURE AND SUGGESTED SOURCE TREE
+======================================================================
+
+Use a small, readable architecture with clear ownership boundaries. Adjust
+file names if needed, but preserve separation of responsibilities.
+
+Suggested project tree:
+
+qslate/
+  CMakeLists.txt
+  README.md
+  DESIGN.md
+  config.example.ini
+  packaging/
+    qslate.desktop
+  src/
+    main.cpp
+    MainWindow.h
+    MainWindow.cpp
+    Editor.h
+    Editor.cpp
+    EditorFrame.h
+    EditorFrame.cpp
+    LineNumberArea.h
+    LineNumberArea.cpp
+    ConfigManager.h
+    ConfigManager.cpp
+    KeyBindings.h
+    KeyBindings.cpp
+    TextNormalization.h
+    TextNormalization.cpp
+    FileDocument.h
+    FileDocument.cpp
+  tests/
+    CMakeLists.txt
+    tst_textnormalization.cpp
+    tst_editor.cpp
+    tst_clipboard.cpp
+    tst_configmanager.cpp
+    tst_filedocument.cpp
+    tst_keybindings.cpp
+    tst_editorframe.cpp
+
+Possible responsibilities:
+- main.cpp: application metadata, QCommandLineParser, config selection,
+  startup orchestration.
+- MainWindow: menus, actions, active path, dialogs, status bar, file flow,
+  title and unsaved-change handling.
+- Editor: plain-text editing, key handling, cursor, line-height and document
+  presentation, clipboard operations, current-line highlight.
+- EditorFrame: editor surround/border ownership and geometry.
+- LineNumberArea: logical paragraph line-number drawing and gutter geometry.
+- ConfigManager: canonical defaults, INI loading, validation, serialization,
+  discovery, and reload.
+- KeyBindings: GTK-accelerator parsing, QKeySequence mapping, conflict checks,
+  and QAction updates.
+- TextNormalization: CRLF/CR/LF normalization and related pure helpers.
+- FileDocument: UTF-8 load/save, BOM handling, serialization and safe writes.
+
+Use Qt parent-child ownership correctly. Prefer RAII, clear object ownership,
+const correctness, descriptive names, and small functions. Avoid manual delete
+for QObject children owned by a parent. Avoid duplicated file-loading logic,
+duplicated configuration defaults, unnecessary inheritance, and a giant
+MainWindow or Editor implementation.
+
+Do not copy the old source's defects merely to preserve its structure.
+
+======================================================================
+17. CMAKE, UBUNTU PACKAGING, AND DESKTOP INTEGRATION
+======================================================================
+
+Build a native executable named qslate.
+
+CMake requirements:
+- C++17, required.
+- Qt 6 Widgets required.
+- Qt 6 Test required for tests when QSLATE_BUILD_TESTS=ON; tests can be
+  disabled explicitly for a minimal production build.
+- Use imported targets Qt6::Widgets and Qt6::Test, not hard-coded library
+  paths.
+- Use CMake AUTOMOC where required.
+- Support Debug and Release configurations.
+- Add CTest integration.
+- Add proper install targets for executable, desktop entry, and icon if a
+  project-owned icon is created.
+- Do not require Qt Creator.
+- Do not depend on an IDE-specific build process.
+
+Recommended configure/build/test commands:
+
+    cmake -S . -B build -G Ninja \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DQSLATE_BUILD_TESTS=ON
+    cmake --build build --parallel
+    ctest --test-dir build --output-on-failure
+
+Recommended Release build:
+
+    cmake -S . -B build-release -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DQSLATE_BUILD_TESTS=ON
+    cmake --build build-release --parallel
+    ctest --test-dir build-release --output-on-failure
+
+Install to the configured prefix:
+
+    sudo cmake --install build-release
+
+For tests on headless CI or a machine without a display, use an appropriate
+Qt platform such as:
+
+    QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+
+Do not use offscreen tests as a substitute for manual rendering checks on a
+real Ubuntu desktop session.
+
+Desktop entry:
+- File: packaging/qslate.desktop.
+- Name: QSlate Text Editor.
+- Exec must call the actual installed executable: qslate %F.
+- Terminal=false.
+- Type=Application.
+- Use a standard text-editor icon where available, or install a project-owned
+  icon with correct hicolor icon-theme paths.
+- Categories should include Utility and TextEditor.
+- Support text/plain association metadata only if the application can
+  reasonably open arbitrary plain-text files.
+- CMake install rules place the .desktop file in the standard applications
+  directory under the configured install prefix.
+- Never use the incorrect /usr/bin/s3 path found in the old reference.
+
+The launcher may pass more than one filename via %F. Since the application
+has one active document, qslate must implement the documented first-file-only
+policy and clearly report that remaining paths were not opened.
+
+======================================================================
+18. AUTOMATED TEST PLAN
+======================================================================
+
+Use Qt Test and CTest. The tests must validate observable behaviour, not just
+exercise methods without checking results. Do not weaken tests to hide bugs.
+
+A. Text normalization tests
+- LF input remains unchanged.
+- CRLF becomes exactly one LF.
+- CR becomes LF.
+- Mixed CRLF/CR/LF becomes a consistent LF sequence.
+- Leading newline remains.
+- Trailing newline remains according to the documented serialization rule.
+- Repeated blank lines remain.
+- Empty string remains empty.
+- Unicode and non-ASCII characters remain unchanged.
+
+B. Enter/document structure tests
+- Enter in non-empty paragraph creates exactly one block boundary.
+- Enter in an empty paragraph creates the correct additional empty block.
+- Repeated Enter creates the expected number of empty paragraphs.
+- Enter at the start and end of a paragraph is correct.
+- Enter over a selection replaces it exactly once.
+- Undo/redo restores text and block count.
+- Visual word wrapping does not change logical block count or text.
+
+C. Clipboard tests
+- Single-line paste.
+- LF paste.
+- CRLF paste.
+- CR paste.
+- Mixed newline paste.
+- Multiple consecutive blank lines.
+- Leading and trailing newlines.
+- Paste into empty document.
+- Paste at beginning, middle, and end of existing paragraph.
+- Paste over single- and multi-paragraph selections.
+- Paste beside empty paragraphs.
+- Unicode, combining characters, CJK, and emoji paste.
+- HTML plus plain-text MIME data inserts plain text only.
+- HTML-only/image-only MIME data is ignored safely.
+- Copy clipboard contains plain text and no HTML.
+- Cut copies plain text and removes the selected text.
+- Multiline paste is exactly one undo and one redo operation.
+- Document becomes modified after paste and returns to clean when undo
+  reaches the saved state.
+
+D. File round-trip tests
+- Load/save UTF-8 text.
+- Empty file.
+- Empty paragraphs and multiple blank lines.
+- Leading/trailing newline.
+- LF, CRLF, CR, and mixed line endings.
+- UTF-8 BOM strip policy.
+- Non-ASCII text and emoji.
+- Invalid UTF-8 policy.
+- Output encoding is UTF-8.
+- Output newlines are LF.
+- Internal paragraph styling is absent from saved file.
+- Save failure preserves prior path, file contents, and modified state.
+- Successful Save As switches path only after commit.
+
+E. Configuration tests
+- Canonical defaults equal the supplied config values exactly.
+- --print-config serializes the same canonical defaults.
+- config.example.ini has the same canonical values.
+- Partial config overrides only keys present.
+- Missing config uses built-in canonical defaults.
+- Invalid colors fall back safely.
+- Invalid font family uses a runtime fallback without rewriting the value.
+- Font, border, spacing, and line-height range validation is consistent.
+- NaN/infinity are rejected.
+- GTK-style shortcuts parse correctly, including Primary+Shift, plus, minus,
+  F3 and F11.
+- Invalid shortcuts are rejected with diagnostics.
+- Duplicate shortcut conflict handling is deterministic.
+- Reload updates visible editor settings and existing QAction shortcuts.
+- Reload does not change text, cursor, selection, dirty state, or undo stack.
+
+F. Gutter, border, and appearance tests
+- Logical line numbers correspond to QTextDocument blocks.
+- A wrapped paragraph shows one logical line number, not one per visual row.
+- Gutter width expands at digit boundaries.
+- Hiding gutter reclaims width.
+- Current-line highlight follows the cursor's logical block.
+- Font and line-height changes realign gutter.
+- Border color is loaded and visibly applied to the correct widget.
+- Border reload changes color without restart.
+- Border size 0 removes the surround; positive size restores it.
+- Border changes do not dirty the document or modify its undo stack.
+- Cursor block/beam mode does not alter text.
+- block_cursor_blink=false produces a steady non-blinking block cursor.
+
+G. Main-window and command-line tests
+- Save/Save As/New/Open/Quit unsaved-change decision paths.
+- Cancel preserves current document.
+- Failed open and failed save show clear errors.
+- Title updates for Untitled, named file, and modified state.
+- Find, Find Next, wrap, and not-found behaviour.
+- Go to Line valid and invalid values.
+- Status bar updates for cursor and document operations.
+- Shortcut configuration reload updates QActions.
+- --help, --version, --print-config, --print-config-paths, --config.
+- Multiple file arguments open only the first and report the policy.
+- CLI commands return correct exit codes.
+
+H. Manual GUI verification checklist
+- Normal window around 900 x 600.
+- Maximized window.
+- Full-screen window.
+- Minimum-size window.
+- High-DPI scaling.
+- Status bar enabled/disabled.
+- Line numbers enabled/disabled.
+- Word wrap enabled/disabled.
+- Small and large fonts.
+- Several line-height and paragraph-spacing combinations.
+- Empty document, short document, long document.
+- Large multiline paste followed by scroll to final line.
+- Block cursor on/off and blink on/off.
+- Border color red/green test and border size 0/20 test.
+- No unexpected bottom blank region.
+- No text clipping, gutter drift, overlap, or status bar collision.
+- No QPainter warnings on launch, resize, repaint, or configuration reload.
+- Verify on the target Ubuntu desktop session. Record whether the test used
+  Wayland or X11 and the Qt platform plugin in the final report.
+
+Automated and manual test results must be reported separately. Do not present
+an unperformed manual checklist as passed.
+
+======================================================================
+19. KNOWN REFERENCE DEFECTS THAT MUST NOT RECUR
+======================================================================
+
+The implementation must explicitly avoid these known weaknesses:
+
+1. No deliberate plain-text paste route: QSlate must intercept paste and
+   insert normalized plain text deliberately.
+2. No synchronous paragraph formatting from a generic blockCountChanged
+   callback that can break consecutive empty paragraphs.
+3. No assumption that custom Enter handling automatically formats pasted
+   paragraphs.
+4. No fixed-height line boxes calculated only from the default font unless
+   a tested, documented reason justifies them.
+5. No duplicated or conflicting runtime/config-print/example defaults.
+6. No mismatch between ConfigManager validation and Editor setter clamping.
+7. No duplicate file reads or multiple open loops that silently discard
+   documents when there are no tabs.
+8. No misleading claim that multiple files are open simultaneously.
+9. No desktop launcher Exec path pointing to /usr/bin/s3 or another binary
+   name different from qslate.
+10. No config reload that changes a key-binding object but leaves existing
+    QAction shortcuts unchanged.
+11. No reuse of border_size as all four viewport margins by accident.
+12. No assumption that a single bottom-space symptom has one known root
+    cause. Rebuild and test the layout rather than guessing.
+13. No absence of automated tests for text normalization, document structure,
+    clipboard, configuration, formatting, and serialization.
+14. No redundant global line-height reapplication after a load operation that
+    already applies the policy.
+15. No invalid QPainter usage across QTextEdit/QAbstractScrollArea paint
+    contexts.
+16. No claim that editor border_color changes the native OS window frame.
+17. No loss of user-provided config values due to generic example defaults.
+18. No misinterpretation of GTK-style shortcut strings as Qt PortableText
+    without translation.
+
+======================================================================
+20. REQUIRED DELIVERABLES
+======================================================================
+
+Create all of the following in the qslate/ project directory:
+
+1. Complete compilable C++17/Qt 6 source code for QSlate.
+2. CMakeLists.txt with correct Qt 6 dependencies, tests, and install rules.
+3. config.example.ini containing the exact canonical configuration values.
+4. packaging/qslate.desktop with a correct qslate executable reference.
+5. Automated Qt tests for normalization, editing, clipboard, formatting,
+   configuration, shortcuts, border handling, and file serialization.
+6. README.md with product description, Ubuntu 26.04 dependencies, build/run/
+   install commands, configuration precedence, CLI, shortcuts, and
+   troubleshooting.
+7. DESIGN.md explaining document/newline policy, clipboard transaction,
+   paragraph formatting, gutter mapping, editor surround ownership, paint
+   lifecycle, config model, and shortcut syntax conversion.
+8. A short CHANGELOG.md or implementation report summarizing defects fixed.
+9. An optional icon only if a proper icon asset is actually created; do not
+   invent a path to a nonexistent icon.
+
+Do not merely describe these deliverables. Write the files. Build and test
+what the environment permits.
+
+If Qt 6 development files are absent, still create the complete source tree,
+run all checks that do not need Qt, and state clearly that compilation was
+not verified because the dependency is missing. Do not stop after producing
+an outline.
+
+======================================================================
+21. IMPLEMENTATION WORKFLOW
+======================================================================
+
+Follow this order and keep the implementation coherent:
+
+Step 1. Inspect the working directory, repository, Ubuntu release, compiler,
+        CMake, Qt 6, and available test/display environment. Do not overwrite
+        unrelated data.
+Step 2. Create the QSlate project structure and set application identity.
+Step 3. Implement the canonical configuration structs/defaults using the
+        supplied config.ini values. Ensure --print-config can serialize them.
+Step 4. Implement and unit-test newline normalization and UTF-8 helpers.
+Step 5. Design the QTextDocument/editor operation model, including how Enter,
+        paste, paragraph formatting, and undo transactions interact.
+Step 6. Implement plain-text load/save and round-trip tests.
+Step 7. Implement Enter, paste, copy, cut, undo, and redo; test all newline
+        combinations and selection boundaries.
+Step 8. Implement proportional line height and paragraph margins. Verify
+        Unicode fallback glyphs do not clip.
+Step 9. Implement gutter, current-line highlight, word wrap, and scrolling.
+Step 10. Implement the outer editor surround/frame with safe paint ownership.
+Step 11. Implement block/beam cursor handling, including blink configuration.
+Step 12. Implement MainWindow menus, file dialogs, search, go-to-line, status
+         bar, title, and unsaved-change protection.
+Step 13. Implement configuration discovery, validation, GTK-style shortcut
+         conversion, reload, and command-line flags.
+Step 14. Implement CMake installation and the qslate.desktop launcher.
+Step 15. Build and run automated tests. Fix defects rather than weakening
+         acceptance criteria.
+Step 16. Perform available GUI checks; record any that could not be performed.
+Step 17. Review all source for duplicate defaults, unsafe ownership, invalid
+         painting, TODOs, dead code, stale Slate naming, and inconsistent
+         documentation.
+Step 18. Provide final build/run/install instructions and an honest test and
+         implementation report.
+
+======================================================================
+22. FINAL ACCEPTANCE PRIORITIES
+======================================================================
+
+The highest-priority behaviours, in order, are:
+
+1. QSlate is a real native Qt 6 Widgets application and the binary is qslate.
+2. The user's config.ini values are preserved as canonical defaults and are
+   reflected in runtime, --print-config, example config, documentation, and
+   tests.
+3. Enter and multiline paste create identical logical paragraph structure.
+4. CRLF, CR, and LF are normalized without adding or losing blank lines.
+5. Copy/cut/paste/undo/redo operate on plain text predictably.
+6. A multiline paste is one undo step.
+7. Existing, newly typed, and pasted paragraphs share the same line-height
+   and spacing model.
+8. Font fallback and Unicode glyphs are not clipped.
+9. Gutter and current-line highlight follow logical document blocks, not
+   visual wrapped rows.
+10. Editor surround, gutter, viewport, and status bar are independent layout
+    regions; no unexplained bottom gap appears.
+11. border_color is painted by the correct widget, reloads immediately, and
+    causes no invalid-QPainter warnings.
+12. GTK-style shortcuts in the supplied config work correctly in Qt.
+13. Config reload updates existing menu actions and does not dirty the file.
+14. File operations are safe, UTF-8, plain-text, and atomic where practical.
+15. Opening multiple file paths does not silently discard or misrepresent
+    documents.
+16. QSlate builds, has automated tests, installs correctly, and includes
+    accurate documentation.
+
+Keep the application focused. Make practical engineering decisions, explain
+non-obvious choices in DESIGN.md, and prioritize predictable editing behaviour,
+correct data preservation, and maintainability over cleverness or extra
+features.
+
+Deliver a working application, not just a proposal.
+
+END OF QSLATE MASTER AI DEVELOPMENT PROMPT
