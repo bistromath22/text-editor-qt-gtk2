@@ -1,0 +1,1875 @@
+MASTER AI DEVELOPMENT PROMPT
+BUILD, TEST, AND PACKAGE “wedit”
+Native wxWidgets 3.2.x Plain-Text Editor for Ubuntu 26.04 LTS
+C++17 • wxWidgets • wxStyledTextCtrl/Scintilla • CMake
+Primary: Ubuntu 26.04 LTS • Secondary: Windows 10/11 (64-bit)
+
+================================================================================
+0. EXECUTION MISSION AND NON-NEGOTIABLE DELIVERABLE
+================================================================================
+
+Act as a senior C++ desktop-application architect, wxWidgets developer,
+Scintilla/wxStyledTextCtrl engineer, cross-platform build engineer, and test
+engineer.
+
+Create a complete, working native desktop plain-text editor named wedit. The
+primary target is Ubuntu 26.04 LTS. Use C++17, wxWidgets 3.2.x, the wxWidgets
+Styled Text Control (wxStyledTextCtrl), and CMake. Retain a clean, supportable
+Windows 10/11 64-bit build path.
+
+This is an implementation task, not a design-only exercise. Create the actual
+project files in the working filesystem, compile the application where the
+environment permits, run its automated tests, and create a downloadable source
+archive named:
+
+    wedit-source.zip
+
+The project must include an automated dependency installation script:
+
+    install_deps.sh
+
+and a verified source-packaging script:
+
+    package.sh
+
+The intended Ubuntu workflow is:
+
+    ./install_deps.sh
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --parallel
+    ctest --test-dir build --output-on-failure
+    ./package.sh
+
+The final source archive must contain the complete source tree, CMake files,
+configuration example, scripts, tests, documentation, and Linux desktop
+launcher. It must not contain build output, object files, CMake caches, IDE
+metadata, or a nested copy of the archive itself.
+
+Do not substitute a code listing, mock-up, partial scaffold, or instructions
+for an archive that was never created. Do not leave TODO placeholders,
+pseudocode, empty implementations, fake tests, or truncated files. If the
+execution environment cannot install dependencies or run the GUI, still create
+the complete source tree and perform every meaningful check that is possible.
+Clearly distinguish verified results from checks that could not be run. Never
+fabricate successful build, test, GUI, or Windows verification.
+
+================================================================================
+1. INPUT FILES, AUTHORITY, AND CONFLICT RESOLUTION
+================================================================================
+
+The implementation workspace may include these reference files:
+
+1. wedit_master_ai_prompt.txt
+   A detailed wedit specification targeting FLTK/C++17. Treat it as the
+   authoritative source for wedit's product identity, the existing
+   configuration contract, visual defaults, shortcuts, command-line behavior,
+   document rules, and intended feature scope. Translate toolkit-specific
+   implementation details to wxWidgets; do not copy FLTK APIs.
+
+2. wedit_build_prompt--gemini.txt
+   A concise wedit build/package specification. Use it for the required
+   install_deps.sh, package.sh, source project layout, Ubuntu build workflow,
+   tests, and wedit-source.zip deliverable. Resolve overlapping requirements
+   using the priority rules below.
+
+3. config.ini
+   The user's actual configuration file. This is the authoritative source for
+   every existing setting name, shortcut name, shortcut spelling, and initial
+   default value. Preserve every supplied key and exact value. Do not replace
+   these settings with values from the older Slate/gSlate feature reference.
+
+4. 11--ai-text-prompt--gslate.txt
+   A detailed gSlate Editor prompt written for C17 and GTK4. Treat it only as a
+   FEATURE AND BEHAVIOUR REFERENCE for transferable Slate-like behaviour:
+   file workflows, unsaved-change protection, plain-text clipboard handling,
+   newline preservation, search, Go to Line, line numbers, status information,
+   window layout, border geometry, test cases, and known failure modes.
+   Do not use GTK4, GtkTextView, GtkTextBuffer, GtkTextTag, GAction, GMenu,
+   GKeyFile, GLib/GIO application architecture, Meson, or GTK-specific APIs in
+   wedit. The wxWidgets implementation must be native wxWidgets/C++17.
+
+5. wedit_FLTK_Ubuntu_26.04_Master_AI_Development_Prompt.txt, if supplied
+   The previous consolidated wedit prompt. Treat it as a useful review checklist
+   only. Retain its wedit requirements and correct omissions, but replace all
+   FLTK-specific APIs and assumptions with wxWidgets/Scintilla equivalents.
+
+If the inputs conflict, use this priority:
+
+    1. This wxWidgets wedit prompt.
+    2. Exact keys and values in the supplied config.ini.
+    3. The wedit FLTK prompt's toolkit-independent requirements.
+    4. Transferable product behaviour from the gSlate/Slate reference.
+    5. A sensible, documented engineering decision for unspecified details.
+
+Before implementation, inspect every available supplied reference file
+completely. Do not infer unseen requirements from a filename or a partial
+snippet. If a referenced source file is not present, state that fact and use
+only the requirements explicitly available in this prompt. Do not invent
+features and attribute them to the references.
+
+In the final report, list which Slate/gSlate behaviours were retained, which
+were adapted to wxWidgets/Scintilla, and which cannot be reproduced exactly.
+
+================================================================================
+2. ROLE, PRODUCT IDENTITY, AND SCOPE
+================================================================================
+
+Project/product name: wedit
+Window title: wedit — <filename> or wedit — Untitled
+Installed executable: wedit
+Linux desktop entry: wedit.desktop
+Primary platform: Ubuntu 26.04 LTS
+Secondary platform: Microsoft Windows 10/11 (64-bit)
+Language: C++17
+GUI toolkit: wxWidgets 3.2.x
+Editor control: wxStyledTextCtrl (wxSTC, built on Scintilla)
+Build system: CMake
+Document type: UTF-8 plain text
+
+The target is a lightweight, fast-starting, keyboard-friendly, distraction-free
+plain-text editor. It should feel like a traditional desktop text editor with
+a quiet dark editing surface. Keep one main window and exactly one active
+document at a time.
+
+The application must provide:
+- File, Edit, and View menus.
+- One central multiline editor.
+- UTF-8 plain-text open/save/save-as.
+- Reliable unsaved-change protection.
+- A configurable dark theme and monospace font.
+- Optional logical line-number gutter.
+- Optional current-line highlighting.
+- Word wrapping on/off.
+- Block or normal caret, including configured blink behaviour.
+- Optional bottom status bar showing logical line and Unicode column.
+- Find, Find Next, and Go to Line.
+- Runtime configuration reload.
+- Full-screen mode.
+- Configurable keyboard shortcuts.
+- A small CLI for file opening, configuration inspection, help, and version.
+- Automated tests, documentation, install script, and packaging script.
+
+Strictly do NOT add:
+- Tabs or multiple simultaneously open documents.
+- Split panes, project explorer, workspace browser, or file tree.
+- Syntax highlighting, code folding, completion, or IDE features.
+- Integrated terminal, plugin framework, or toolbar.
+- Rich-text or word-processing features.
+- Embedded images, controls, or document objects.
+- Cloud services, telemetry, accounts, or network dependencies.
+
+Although wxStyledTextCtrl is capable of syntax styling, lexers, indicators,
+folding, and other code-editor facilities, do not turn wedit into an IDE. Use
+Scintilla only as a robust plain-text editing surface. Disable language lexer
+behaviour and apply only the single plain-text visual style plus required
+editor UI features (caret line and line-number margin).
+
+================================================================================
+3. WXWIDGETS TECHNICAL BASELINE AND EDITOR-CONTROL DECISION
+================================================================================
+
+Use wxWidgets 3.2.x APIs as the compatibility baseline. Target the wxWidgets
+3.2 development package available for Ubuntu 26.04. Do not rely on unreleased
+wxWidgets 3.3/3.4 APIs. Check the version and build features actually installed
+on the machine before relying on a method or linking a component.
+
+On Ubuntu, wxWidgets uses its GTK port as the native backend. This is still a
+wxWidgets application: do not write a direct GTK application or use GTK widget
+APIs. The intended Ubuntu dependency package is:
+
+    libwxgtk3.2-dev
+
+The Ubuntu 26.04 (resolute) package index currently lists wxWidgets 3.2.9 for
+this development package. Do not pin the source to the packaging patch number;
+verify the actual installed wx-config output and compile against the installed
+3.2.x package. The package is in Ubuntu's Universe repository, so the install
+script must report a helpful message if the package index is not enabled or the
+package cannot be located.
+
+### 3.1 Mandated editing control: wxStyledTextCtrl
+
+Use:
+
+    #include <wx/stc/stc.h>
+
+and a wxStyledTextCtrl as the single central editing control. It is wxWidgets'
+wrapper around the Scintilla editing component. This is the preferred match for
+wedit because it provides a documented, mature API for line-number margins,
+caret styles, caret blink periods, current-line highlighting, wrapping, text
+positions, and grouped undo operations.
+
+Do not use wxTextCtrl as the primary editor unless the implementation agent
+proves that wxStyledTextCtrl is unavailable in the selected wxWidgets build and
+produces a written, approved-by-the-spec fallback analysis. The expected build
+must link the wxWidgets STC component/library.
+
+Use the actual wxStyledTextCtrl wrapper methods where available. Verify every
+method, event, constant, and signature against the installed wxWidgets 3.2
+headers and documentation. If a required Scintilla feature is exposed only by
+a documented Scintilla message, use the wxStyledTextCtrl SendMsg/SendMessage
+wrapper with the matching public Scintilla message constant. Do not call
+private Scintilla internals or depend on undocumented structure layouts.
+
+Useful wxStyledTextCtrl capabilities include (verify exact wrapper spellings
+in the installed headers):
+- SetText(), GetText(), GetTextLength(), ClearAll(), AddText(), InsertText().
+- SetCodePage(wxSTC_CP_UTF8), SetEOLMode(wxSTC_EOL_LF), ConvertEOLs().
+- SetLexer(wxSTC_LEX_NULL), StyleClearAll(), StyleSetFont(),
+  StyleSetForeground(), StyleSetBackground(), StyleSetSize().
+- SetWrapMode(wxSTC_WRAP_WORD / wxSTC_WRAP_NONE).
+- SetMarginType(), SetMarginWidth(), SetMarginMask(), SetMarginSensitive().
+- TextWidth() for measuring line-number margin content.
+- SetCaretStyle(wxSTC_CARETSTYLE_BLOCK / wxSTC_CARETSTYLE_LINE).
+- SetCaretPeriod(0) to request a non-blinking caret.
+- SetCaretLineVisible() and SetCaretLineBackground().
+- SetExtraAscent() and SetExtraDescent(), if present in the selected wrapper;
+  otherwise the equivalent documented Scintilla messages.
+- BeginUndoAction(), EndUndoAction(), Undo(), Redo(), CanUndo(), CanRedo(),
+  EmptyUndoBuffer(), SetUndoCollection(), SetSavePoint(), GetModify().
+- GetCurrentPos(), GetAnchor(), GetSelectionStart(), GetSelectionEnd(),
+  LineFromPosition(), PositionFromLine(), GetLineEndPosition(),
+  CountCharacters(), PositionRelative(), EnsureCaretVisible().
+- SearchAnchor(), SearchNext(), SearchPrev(), FindText(), and the associated
+  search flags, as available in the installed release.
+
+The underlying Scintilla document is the authoritative text model. Do not keep
+an independently mutable std::string copy of the entire document as a second
+source of truth. Temporary strings for file I/O, clipboard, or tests are fine.
+
+### 3.2 wxWidgets application architecture
+
+Use normal wxWidgets classes and ownership conventions:
+- wxApp for application startup.
+- wxFrame for the main window.
+- wxMenuBar and wxMenu for File/Edit/View menus.
+- wxPanel and wxBoxSizer/wxFlexGridSizer for layout.
+- wxStyledTextCtrl for editing.
+- wxStatusBar or a dedicated wxPanel for the optional status row.
+- wxFileDialog for Open and Save As.
+- wxMessageDialog / wxMessageBox for errors and unsaved-change prompts.
+- wxTextEntryDialog or a small dedicated dialog for Find and Go to Line.
+- wxAcceleratorTable / wxAcceleratorEntry for keyboard accelerators.
+- wxClipboard and wxTextDataObject for plain-text clipboard operations.
+- wxStandardPaths for platform-aware application/config paths where useful.
+- wxFileName, wxFile, wxTempFile, and/or a small OS-specific safe-save layer
+  for paths and file handling.
+
+Use wxWidgets' normal event table or Bind() approach consistently. Route menu
+and keyboard commands through one central action-dispatch layer to avoid
+slightly different behaviour between menus and shortcuts.
+
+### 3.3 wxWidgets documentation and verification
+
+Use official wxWidgets documentation, installed headers, wx-config output,
+and the official Scintilla documentation as the source of truth. Relevant
+starting points:
+
+    https://www.wxwidgets.org/
+    https://docs.wxwidgets.org/3.2/
+    https://www.scintilla.org/ScintillaDoc.html
+    https://cmake.org/cmake/help/latest/module/FindwxWidgets.html
+
+Scintilla documents its positions as byte-oriented positions in the encoded
+document. With UTF-8, never equate a byte offset with a user-visible Unicode
+column. Use the control's documented character-count/position helpers and test
+all offset conversions. Some Scintilla APIs are expressed in bytes even when
+the visible text is Unicode.
+
+Scintilla uses one common physical line height for all document/display lines.
+It provides extra ascent/descent controls that can add global vertical space.
+Use these capabilities carefully; do not promise per-paragraph formatting that
+the control does not provide. See Sections 9 and 10.
+
+================================================================================
+4. VISUAL DESIGN AND EXACT CANONICAL CONFIGURATION
+================================================================================
+
+Use the user's supplied config.ini as the only source for starting defaults.
+Do not copy the older gSlate defaults (font size 12, border 8, block cursor off,
+line numbers on, status bar on, or Monospace family). Those belong to a
+separate implementation reference and are not wedit defaults.
+
+Canonical wedit defaults copied from config.ini:
+
+[editor]
+wordwrap=true
+border_size=20
+border_color=#313244
+background_color=#1e1e2e
+gutter_background_color=#313244
+current_line_color=#313244
+line_number_color=#6c7086
+text_color=#cdd6f4
+block_cursor=true
+block_cursor_blink=false
+font_family=Monaco
+font_size=18
+line_height=1.4
+pixels_above=0
+pixels_below=0
+line_distance=0
+show_line_numbers=false
+highlight_current_line=true
+show_statusbar=false
+
+[shortcuts]
+new_file=<Primary>n
+open=<Primary>o
+save=<Primary>s
+save_as=<Primary><Shift>s
+quit=<Primary>q
+undo=<Primary>z
+redo=<Primary>y
+cut=<Primary>x
+copy=<Primary>c
+paste=<Primary>v
+find=<Primary>f
+find_next=F3
+goto_line=<Primary>g
+reload_config=<Primary>r
+toggle_wordwrap=<Primary>w
+increase_font=<Primary>plus
+decrease_font=<Primary>minus
+fullscreen=F11
+toggle_line_numbers=<Primary>l
+toggle_current_line=<Primary>h
+toggle_statusbar=<Primary><Shift>b
+
+The supplied config.ini does not contain toggle_block_cursor. Add this extra
+built-in shortcut:
+
+toggle_block_cursor=<Primary>b
+
+It must be included in the canonical defaults structure, --print-config,
+and config.example.ini, but do not claim it was present in the supplied file.
+If the user's config later specifies toggle_block_cursor, that value overrides
+the built-in fallback.
+
+### 4.1 Appearance
+
+Use the exact values in the active configuration; do not duplicate palette
+literals across source files. The initial theme is:
+- Editor background: #1e1e2e
+- Border/frame surround: #313244
+- Gutter background: #313244
+- Current-line background: #313244
+- Line-number foreground: #6c7086
+- Main text: #cdd6f4
+- Requested monospace font family: Monaco
+- Font size: 18 points (define and document points consistently)
+
+Monaco may not be installed on Ubuntu. Resolve the font without preventing
+startup. Preferred chain:
+1. The configured face name if installed and monospace.
+2. A platform monospace face such as "Monospace" if available.
+3. wxFONTFAMILY_TELETYPE / a known fixed-width wxWidgets fallback.
+
+Use wxFontEnumerator or another public wxWidgets/font API to check availability
+where reliable. Do not claim Monaco is active if a fallback was selected. Log
+the requested and resolved font family. Ensure that the text and line-number
+margin use compatible monospace font metrics.
+
+Use wxColour validation for #RRGGBB. Do not pass invalid strings into widgets.
+Colour parsing and config validation must use one shared helper.
+
+### 4.2 Window geometry
+
+Initial main window approximately 900 x 600 logical pixels; minimum around
+400 x 300. Use sizers and normal wxWidgets layout, not fixed child coordinates.
+Support normal, maximized, restored, full-screen, resized, and high-DPI states.
+The editor must expand to fill available central space. The menu remains at the
+top. The optional status bar remains at the bottom only when enabled. Do not
+leave an empty strip or bottom spacer when the status bar is hidden.
+
+Treat border_size as a configurable visual surround/inset around the editor,
+not as four unrelated margins. Keep the outer border, text margins, line-number
+gutter, right/bottom editor inset, and status-bar height conceptually separate.
+
+================================================================================
+5. CONFIGURATION FILE CONTRACT
+================================================================================
+
+Use a human-editable INI file named config.ini with [editor] and [shortcuts]
+sections. A small self-contained C++ parser is preferred so the exact syntax,
+comments, duplicate handling, warnings, and preservation rules are explicit.
+wxFileConfig is an acceptable alternative only if the implementation proves
+that it preserves every required key/value spelling and supports the precise
+validation and forward-compatibility rules below. Do not use wxConfigBase or
+platform registry settings as the sole configuration store.
+
+Required parser behaviour:
+- Section headers such as [editor] and [shortcuts].
+- key=value pairs.
+- Leading/trailing whitespace around keys and values.
+- Blank lines.
+- Full-line comments beginning with # or ;.
+- Preserve colour values beginning with #; do not parse the leading colour
+  marker as an inline comment.
+- Case-insensitive booleans true/false (optionally yes/no and 1/0).
+- Numeric parsing with strict full-string consumption.
+- Reject NaN, infinity, overflow, underflow where invalid, and trailing junk.
+- Validate #RRGGBB colours and non-empty font family.
+- Duplicate keys: last occurrence wins and emits a diagnostic.
+- Unknown keys: warn, retain/ignore safely, and do not crash.
+- Unknown sections: warn and ignore safely.
+- Malformed lines: report line number and continue only where recovery is safe.
+- Missing configuration file: use canonical defaults.
+- Partial config: unspecified keys inherit canonical defaults.
+- Unreadable/invalid explicit config path: report clearly and follow one
+  documented deterministic policy (prefer exit nonzero for explicit path;
+  never silently search and activate a different file).
+- Invalid individual values: keep that property's compiled-in default, report
+  the key and reason, and continue if the file structure remains parseable.
+- Parse into a temporary Config object, validate the full candidate, and apply
+  atomically only after successful parse. A failed reload must not partially
+  mutate the active runtime configuration.
+
+Define the canonical defaults exactly once in a single ConfigDefaults factory
+or constexpr/static Config object. Startup, fallback handling, config.example.ini
+generation, --print-config, tests, and menu shortcut fallbacks must all derive
+from that source. Do not keep separate handwritten defaults in the GUI,
+parser, README sample, or command-line printer.
+
+Numeric validation policy (one shared validator for parsing and runtime font
+commands):
+- border_size: 0..128 logical pixels.
+- font_size: 6..96 points.
+- line_height: finite 0.5..5.0.
+- pixels_above: finite 0..100.
+- pixels_below: finite 0..100.
+- line_distance: finite 0..100.
+- Colours: exactly #RRGGBB unless alpha is deliberately added consistently.
+- Boolean: strict true/false plus explicitly documented aliases.
+
+If values are outside the stated ranges, retain the canonical default for that
+property and emit a diagnostic. Do not clamp silently. Keep original settings
+and values available to --print-config only when they are valid; output must
+always represent the canonical defaults, not a corrupted runtime state.
+
+### 5.1 Config discovery
+
+Linux discovery order:
+1. ./config.ini in the current working directory.
+2. $XDG_CONFIG_HOME/wedit/config.ini if XDG_CONFIG_HOME is set; otherwise
+   ~/.config/wedit/config.ini.
+3. /etc/wedit/config.ini.
+4. Built-in canonical defaults.
+
+Windows discovery order:
+1. ./config.ini in the current working directory.
+2. %APPDATA%/wedit/config.ini.
+3. An optional documented system-wide location if actually implemented.
+4. Built-in canonical defaults.
+
+Support --config PATH as the highest-priority explicit override. An explicit
+path is not another item in the automatic search list: it must be attempted
+exactly and reported as active or failed.
+
+Provide a diagnostic mode that prints candidate paths in priority order,
+exists/readable state, selected active source, and whether built-in defaults
+are in effect. Use wxStandardPaths and environment APIs for platform paths;
+keep path handling Unicode-safe on Windows.
+
+### 5.2 Runtime reload
+
+Ctrl+R reloads the active configuration (or repeats automatic discovery if no
+explicit override was selected; document exact policy). Apply configuration
+only after parsing and validation complete. Update:
+- Editor font face and point size.
+- Editor background and foreground.
+- Gutter background and line-number foreground.
+- Current-line background and visibility.
+- Border colour and thickness.
+- Word wrap.
+- Block/normal caret and caret blink period.
+- Line-number gutter visibility and width.
+- Line-height approximation and spacing diagnostics.
+- Status bar visibility and content.
+- Menu accelerator table and displayed shortcut labels.
+
+Reload must preserve document text, file path, cursor/selection, undo history,
+and modified state. Appearance changes must never become text edits or change
+the Scintilla save point. Preserve the current viewport/scroll position where
+possible.
+
+================================================================================
+6. DOCUMENT MODEL AND PLAIN-TEXT EDITOR RULES
+================================================================================
+
+Use one wxStyledTextCtrl instance for the one active document. Scintilla's
+document inside that control is authoritative. Do not maintain a second
+editable document string or synchronize two competing models.
+
+Configure it for UTF-8. Use the documented UTF-8 code page and explicitly set
+LF as the internal EOL mode. Disable syntax lexing:
+
+    SetLexer(wxSTC_LEX_NULL)
+
+Use the default style for all ordinary text. Set the style font, size,
+foreground, and background from the active configuration. Use StyleClearAll()
+only when the API semantics have been checked, and reapply the default style
+after clearing. Do not set language-specific lexer styles.
+
+Saved documents contain ordinary UTF-8 text only. No markup, HTML, rich-text,
+style bytes, indicators, margin annotations, editor metadata, or presentation
+state may be serialized.
+
+Font, selection, caret, current-line background, line numbers, wrapping, and
+editor border are UI presentation only. They must not change saved text,
+modified state, or undo history.
+
+Retain standard keyboard editing, mouse selection, drag/drop, scrolling,
+accessibility, and clipboard behaviour. If a custom event handler is required,
+let Scintilla process ordinary editing events unless a specific action must be
+normalized or dispatched by wedit.
+
+Tabs: preserve literal tab characters by default. Configure a sensible tab
+width (four columns) using Scintilla's tab-width API. Do not silently replace
+tabs with spaces. If the control/platform cannot apply tab stops reliably,
+document its actual behaviour rather than altering document text.
+
+================================================================================
+7. UTF-8, NEWLINES, FILE LOAD/SAVE, AND ROUND-TRIP
+================================================================================
+
+### 7.1 Canonical newline policy
+
+Internal document line endings are LF (\n). Every external text input boundary
+must normalize in this order:
+1. CRLF (\r\n) becomes exactly one LF.
+2. Remaining CR (\r) becomes LF.
+3. Existing LF remains LF.
+
+Preserve every intentional leading newline, repeated blank line, empty line,
+and trailing newline. Never normalize a CRLF pair into two LF characters.
+Word wrapping is visual only and must not insert document newline bytes.
+
+Implement newline normalization in a standalone pure helper and unit-test it.
+Also provide the inverse/serialization contract only if a different on-disk EOL
+mode is ever intentionally added. The current default is UTF-8 with LF output.
+
+### 7.2 UTF-8 policy
+
+Read files as bytes. Validate the complete byte sequence as strict UTF-8 before
+changing the active editor. Strip one UTF-8 BOM only at the beginning of a
+loaded file and document this policy. Normalize newlines. Reject invalid UTF-8
+with a useful diagnostic and leave the current document, filename, cursor,
+undo history, and dirty state untouched. Do not silently replace malformed
+bytes or reinterpret them using a local code page.
+
+Scintilla positions are byte-oriented. Never use a UTF-8 byte offset as a
+visible character column. Use the control's documented character-count and
+position-relative functions where possible. If a helper is required, validate
+UTF-8 boundaries and test it using multi-byte characters. Do not split a
+multi-byte code point when selecting or inserting text.
+
+Define the status-bar column explicitly as a 1-based Unicode code-point count
+within the logical line (not UTF-8 bytes). Combining marks count as separate
+code points unless grapheme-cluster segmentation is explicitly implemented
+and documented. Never label a byte count as a character column.
+
+Reject embedded NUL bytes unless the exact wxStyledTextCtrl/Scintilla path
+used by the implementation is proven to store, retrieve, paste, and save them
+without truncation. Do not silently truncate a document at NUL.
+
+### 7.3 File loading
+
+1. Resolve the selected path as a wxString/wxFileName without lossy path
+   conversion.
+2. Read bytes with checked error handling.
+3. Detect and strip an optional UTF-8 BOM.
+4. Validate UTF-8 and reject invalid input before altering the editor.
+5. Normalize CRLF/CR to LF.
+6. Set Scintilla to UTF-8 and LF mode.
+7. Load the validated UTF-8 text in one controlled operation.
+8. Disable undo collection or otherwise reset the undo buffer safely during
+   initial loading; then call EmptyUndoBuffer() and SetSavePoint(). Verify the
+   actual behaviour for the selected Scintilla build.
+9. Set current path only after the complete load succeeds.
+10. Reset dirty state and update title, line count, status, gutter, and scroll.
+
+Opening a file that fails must never blank or replace the existing document.
+Do not create an undo action that can restore text from the previous file.
+
+### 7.4 Safe file saving
+
+Save only UTF-8 document bytes with LF endings. Do not serialize style data or
+widget state. Use safe replacement so a failed save does not truncate or
+corrupt an existing destination.
+
+Preferred robust strategy:
+- Write to a unique temporary file in the destination directory.
+- Use checked write loops; handle short writes and interruptions.
+- Flush user-space buffers and call the platform durability operation where
+  appropriate (fsync/FlushFileBuffers).
+- Close successfully.
+- Atomically replace the destination using the correct platform primitive.
+- Clean up the temporary file on every failure path.
+- Preserve existing file permissions/metadata where feasible and document
+  exactly what is preserved.
+
+On POSIX, a same-directory mkstemp + write + fsync + rename implementation is
+acceptable. On Windows, use Unicode-safe Windows file APIs and a replace/move
+operation with replace-existing semantics; do not assume std::filesystem::rename
+has identical replace behaviour on every platform. Isolate these details in a
+small platform-safe file utility.
+
+Do not mark the document clean or change the current path after a failed save.
+For Save As, change filename/title only after the atomic replacement succeeds.
+Handle read-only files, permissions, missing directories, disk-full errors,
+invalid paths, and failed renames without crashing or losing original data.
+
+### 7.5 Round-trip invariant
+
+For supported UTF-8 input, load -> editor text -> save must preserve every text
+code point and logical LF boundary, subject only to documented BOM stripping
+and newline normalization. Empty file and a file ending in a newline are
+different documents and must remain different after round-trip.
+
+Test empty input, one line, leading newline, trailing newline, multiple
+consecutive blank lines, non-ASCII scripts, combining marks, emoji, and large
+files. Also test load failure and save failure without document loss.
+
+================================================================================
+8. ENTER, CLIPBOARD, CUT/COPY/PASTE, UNDO, AND REDO
+================================================================================
+
+### 8.1 Enter and typing
+
+Prefer Scintilla's native Enter/newline handling. Set the EOL mode to LF.
+Pressing Enter inserts exactly one logical LF. Test Enter:
+- In the middle of a non-empty line.
+- At the start/end of a line.
+- In an empty line.
+- Repeatedly to create multiple blank lines.
+- With a selection active (selection becomes one newline).
+- Adjacent to pre-existing blank lines.
+
+Do not intercept ordinary typing without a demonstrated reason. Cursor,
+selection, and undo behaviour must remain native and predictable.
+
+### 8.2 Clipboard pipeline
+
+Use wxWidgets clipboard APIs and wxTextDataObject for plain text. On Linux,
+Windows, and supported wx ports, use the standard system clipboard. Ensure the
+application's menu actions and configured shortcuts route to one dispatcher.
+
+Copy:
+- Copy exactly the current selection as UTF-8 plain text.
+- Do not copy formatting, styles, markers, margins, or embedded objects.
+- Preserve all selected logical newlines.
+- If no selection exists, do nothing (unless a clearly documented alternative
+  is deliberately implemented).
+
+Cut:
+1. Obtain the selected plain text.
+2. Open the clipboard and set wxTextDataObject text.
+3. Close/release clipboard on every code path.
+4. Only after clipboard ownership/set succeeds, remove the selection.
+5. Group deletion as one undoable edit where necessary.
+6. On clipboard failure, do not delete the selected text.
+
+Paste:
+1. Open/read clipboard as plain text only.
+2. Safely close the clipboard even on exceptions/errors.
+3. Reject/ignore unsupported non-text data without corrupting the document.
+4. Normalize CRLF/CR to LF.
+5. Convert to UTF-8 with a checked conversion.
+6. Replace selected text at the intended insertion point.
+7. Preserve leading/internal/repeated/trailing newlines.
+8. Move caret to the end of inserted content.
+9. Keep scrolling/caret visible.
+10. Update dirty state, title, status, line-number margin, and current-line
+    display.
+11. Group the complete multiline paste into one Scintilla undo transaction
+    using BeginUndoAction()/EndUndoAction(). Ensure EndUndoAction() is called
+    on every normal and exceptional exit.
+
+Clipboard access is synchronous in the usual wxWidgets desktop API, but do not
+assume it cannot fail or block. If an asynchronous implementation is chosen,
+retain the intended selection/insertion point using a carefully managed
+Scintilla position/anchor strategy and document the behaviour when the user
+edits before the paste completes.
+
+Do not let a native Scintilla Ctrl+V binding bypass newline normalization. Test
+keyboard paste and menu paste. If overriding the control's key handling, call
+the native path for unrelated keys and prevent double invocation. Drag/drop
+text should be tested; where the platform can insert CRLF directly, normalize
+it safely without breaking native drop selection behaviour.
+
+### 8.3 Undo and redo
+
+Use Scintilla's built-in undo system. Do not add a separate undo engine.
+- Verify CanUndo/CanRedo, Undo/Redo, EmptyUndoBuffer, SetSavePoint.
+- Menu and shortcut actions call the same dispatcher.
+- Multiline paste is one logical undo operation.
+- Cut is undoable.
+- Enter operations undo correctly.
+- Typing and selection replacement remain intuitive.
+- Loading a new document resets the previous document's undo history.
+- Successful save sets a save point; failed save does not.
+- Undo back to save point clears modified state; redo past it restores it.
+- Appearance/configuration changes do not affect text undo history.
+
+Use Scintilla's modification notifications (e.g. wxEVT_STC_CHANGE and/or
+wxEVT_STC_MODIFIED as appropriate) and update events (e.g. wxEVT_STC_UPDATEUI)
+only as documented by the actual wxWidgets version. Avoid redundant full UI
+updates for every notification.
+
+================================================================================
+9. WORD WRAP, CARET STYLE, BLINK, AND LINE HEIGHT
+================================================================================
+
+### 9.1 Word wrapping
+
+wordwrap=true: SetWrapMode(wxSTC_WRAP_WORD) or the verified word-wrap mode.
+wordwrap=false: SetWrapMode(wxSTC_WRAP_NONE).
+
+Wrapping is visual only and must not change the underlying text. Recalculate
+layout on resize and config reload. Horizontal scrolling should be available
+when wrap is disabled and suppressed/unused when wrap is enabled according to
+Scintilla's native behaviour.
+
+### 9.2 Block cursor and blink
+
+Use the actual Scintilla caret APIs exposed through wxStyledTextCtrl:
+- block_cursor=true: SetCaretStyle(wxSTC_CARETSTYLE_BLOCK).
+- block_cursor=false: SetCaretStyle(wxSTC_CARETSTYLE_LINE).
+- block_cursor_blink=false: SetCaretPeriod(0), which Scintilla documents as a
+  steady, non-blinking caret.
+
+When block_cursor_blink=true, use the platform/control default blink period or
+an explicit documented period. Do not change the global OS caret policy.
+Use a caret colour with enough contrast against the editor background and
+text. Test focus loss/gain, selection, Unicode characters, combining marks,
+emoji, overwrite mode if available, resize, scroll, and redraw.
+
+Scintilla's block caret is a filled/block-style caret, unlike FLTK's outlined
+block cursor. Document the wxStyledTextCtrl/Scintilla appearance actually
+observed; do not reuse the FLTK limitation statement.
+
+### 9.3 Line height and spacing options
+
+The config keys line_height, pixels_above, pixels_below, and line_distance
+must remain present, parseable, validated, visible in --print-config, and
+preserved in config.example.ini.
+
+Scintilla uses a common line height for the document/display lines. Public
+Scintilla APIs SCI_SETEXTRAASCENT and SCI_SETEXTRADESCENT (exposed as
+wxStyledTextCtrl SetExtraAscent/SetExtraDescent in compatible wrappers) add
+vertical space globally to line metrics. They do not provide separate
+per-paragraph top/bottom margins or a distinct wrapped-subline spacing model.
+
+Investigate the actual wxWidgets 3.2 wrapper and bundled Scintilla version.
+If supported, implement line_height=1.4 as a carefully calculated global line
+height approximation:
+1. Apply the resolved font to the default style.
+2. Reset extra ascent/descent to zero.
+3. Query the natural line height using a documented control metric method
+   after the font has been applied (e.g. TextHeight for a valid line/style).
+4. Compute desired height = round(natural_height * line_height).
+5. Compute positive extra pixels = max(0, desired - natural_height).
+6. Distribute extra pixels between ascent and descent in a stable, documented
+   way (approximately half each; remainder deterministic).
+7. Apply and redraw; recalculate after font-size/family changes.
+8. Verify caret positioning, hit testing, wrapped lines, selection, scrolling,
+   line numbers, combining characters, and emoji are not clipped or displaced.
+
+Do not accumulate extra pixels each time configuration is reloaded. Always
+recompute from a zero-extra baseline. Do not fake line height by changing the
+configured font size.
+
+For line_height values below 1.0, negative extra ascent/descent may cause glyph
+overlap or clipping. Implement compression only if documented, safe, and
+visually tested. Otherwise retain/validate the requested value, report that
+compression is unsupported, and use the natural line height as the effective
+fallback.
+
+pixels_above and pixels_below mean independent extra space around logical
+paragraphs. Scintilla's uniform line model does not provide exact per-paragraph
+margins. Do not simulate them by inserting blank lines, changing font sizes,
+or creating hidden characters. Preserve and print values. If nonzero values
+are configured and no reliable public implementation exists, emit a warning
+and document the unsupported effective behaviour.
+
+line_distance means extra spacing between visual wrapped sublines in the
+legacy configuration. Global Scintilla line metrics also affect unwrapped
+lines; they are not a separate wrapped-line-only setting. Do not claim exact
+support unless a documented API and tests prove it. Since the supplied default
+is zero, preserve zero without extra work. For a nonzero value, either provide a
+clearly documented global approximation with an explicit diagnostic or leave
+it unapplied with a warning. Do not silently ignore it.
+
+Document the requested value and effective behaviour separately in diagnostics
+or a settings report. Do not access Scintilla private internals or draw fake
+text rows to imitate paragraph spacing.
+
+================================================================================
+10. LINE-NUMBER GUTTER, CURRENT-LINE HIGHLIGHT, AND STATUS BAR
+================================================================================
+
+### 10.1 Built-in line-number margin
+
+Use Scintilla's built-in numeric margin rather than a separately scrolling
+custom widget.
+
+Recommended design:
+- Reserve a margin index (e.g. margin 0) for line numbers.
+- Set its type to wxSTC_MARGIN_NUMBER.
+- Set the margin mask appropriately.
+- Set line-number style foreground to line_number_color and background to
+  gutter_background_color (using the Scintilla line-number style constant).
+- Use the configured monospace font and a suitable line-number font size.
+- Use TextWidth() and the current logical line count to measure the required
+  digit width, plus a small horizontal inset.
+- Recalculate at 9 -> 10, 99 -> 100, 999 -> 1000, and after font size changes.
+- Set width to zero when show_line_numbers=false so the editor reclaims space.
+- Do not number visual wrapped rows as separate logical lines.
+
+The gutter must remain aligned during scroll, wrap, font changes, resize,
+full-screen transitions, and large paste. No separate scrolling surface is
+allowed unless there is a specific tested reason the native margin cannot meet
+the requirement.
+
+### 10.2 Current-line highlighting
+
+Use Scintilla's native caret-line feature:
+- SetCaretLineVisible(highlight_current_line).
+- SetCaretLineBackground(current_line_color).
+- Use whole logical line highlighting, not only the wrapped visual subline.
+- Keep visibility and colour synchronized after caret movement, selection,
+  load, edit, undo/redo, config reload, and focus changes.
+
+Highlighting is presentation only and must not modify document text, create
+undo actions, or mark the document modified.
+
+### 10.3 Optional status bar
+
+show_statusbar controls a real bottom status row. When visible, show a 1-based
+logical line and 1-based Unicode code-point column, for example:
+
+    Ln 12, Col 5
+
+Update after typing, cursor movement, mouse positioning, selection movement,
+paste, undo/redo, file load, Go to Line, and any cursor relocation. Use the
+Scintilla update UI event to update only when relevant state changes.
+
+When disabled, hide/destroy the status row cleanly and allow the editor to use
+the reclaimed height. Do not leave a permanent blank strip or use a spacer as a
+layout patch. The status row is not editor bottom padding.
+
+================================================================================
+11. BORDER, CONTENT INSETS, AND WINDOW LAYOUT
+================================================================================
+
+Implement the configured editor border as an application-owned surround,
+independent of the operating-system window decorations. wxWidgets does not
+own or promise to recolour the Ubuntu window-manager title bar/frame.
+
+Recommended design:
+- wxFrame main window.
+- Vertical root sizer.
+- Menu bar at the top.
+- A border-owning wxPanel (or small dedicated container class) around the
+  editor region.
+- The border-owning panel paints/owns border_color as its background.
+- A child editor panel/control is inset by border_size using sizer geometry or
+  a small custom border container.
+- The wxStyledTextCtrl fills the available inner area.
+- Optional status row at the bottom.
+
+Use wxWidgets public drawing/layout APIs only. Keep the actual border owner
+clear. If a nested panel is used, ensure all four sides are visible and the
+configured colour is not covered by the editor's background. A border size of
+zero removes the surround; a positive size produces all intended sides.
+
+Keep these distinct:
+1. Editor border thickness.
+2. Text control's left/right/top/bottom padding/margins.
+3. Line-number margin.
+4. Status-row height.
+5. Native OS window decorations.
+
+Changing border thickness/colour must not modify text, cursor, selection,
+scroll position unnecessarily, undo history, or dirty state. Apply DIP-aware
+sizing using wxWidgets conversion methods where appropriate; document whether
+configuration pixel values are logical DIP units and ensure consistent
+behaviour on high-DPI displays.
+
+Do not:
+- Change the native Ubuntu title bar and claim it is the editor border.
+- Use arbitrary bottom spacers to hide a layout issue.
+- Make the status row part of the border.
+- Use fixed absolute coordinates for the whole layout.
+- Paint over the text control's native rendering surface.
+- Use unsupported platform-specific hacks for ordinary border geometry.
+
+Resize and layout must work in normal, maximized, restored, full-screen, and
+minimum supported dimensions. Preserve cursor, selection, and scroll state.
+No clipping, empty bottom region, gutter drift, or overlap is acceptable.
+
+================================================================================
+12. MENUS, ACTIONS, SHORTCUT PARSING, AND SEARCH
+================================================================================
+
+Provide traditional File, Edit, and View menus. Every command must have one
+central action handler. Menu invocation, configured accelerator invocation,
+and any editor-specific key handler must route to that same action. Do not
+implement different copies of Save, Undo, Paste, or other actions.
+
+### 12.1 Required menus and shortcut defaults
+
+FILE
+- New — <Primary>n
+- Open... — <Primary>o
+- Save — <Primary>s
+- Save As... — <Primary><Shift>s
+- Quit — <Primary>q
+
+EDIT
+- Undo — <Primary>z
+- Redo — <Primary>y
+- Cut — <Primary>x
+- Copy — <Primary>c
+- Paste — <Primary>v
+- Find... — <Primary>f
+- Find Next — F3
+- Go to Line... — <Primary>g
+- Reload Config — <Primary>r
+- Toggle Word Wrap — <Primary>w
+- Toggle Block Cursor — <Primary>b (additional built-in fallback)
+- Increase Font — <Primary>plus
+- Decrease Font — <Primary>minus
+
+VIEW
+- Full Screen — F11
+- Toggle Line Numbers — <Primary>l
+- Toggle Current-Line Highlight — <Primary>h
+- Toggle Status Bar — <Primary><Shift>b
+
+The values shown above are fallback defaults from the configuration contract.
+Actual active menu accelerators must be generated from the current config and
+ShortcutParser. Do not hard-code a second conflicting accelerator list.
+
+### 12.2 ShortcutParser
+
+Implement a standalone ShortcutParser that converts the stored GTK-style
+spellings into wxAcceleratorEntry flags and key codes.
+
+Required syntax:
+- <Primary> means Ctrl on Ubuntu/Linux and Windows.
+- <Shift> maps to wxACCEL_SHIFT.
+- Recognize F1 through F24 when supported by wxWidgets/platform.
+- Recognize ordinary ASCII letters and documented punctuation.
+- Recognize plus and minus deterministically.
+- Reject malformed or unsupported spellings with a warning.
+- For an invalid config shortcut, keep that action's compiled-in default.
+- Detect duplicate assignments; resolve with a deterministic policy, log the
+  collision, and ensure no menu action becomes unreachable.
+- Render the visible accelerator label from the same parsed representation.
+
+For plus, account for common keyboard layouts where the top-row plus requires
+Shift with Equal, plus a separate numeric-keypad Add key. Define and document
+which physical combinations are supported. For minus, support the top-row
+minus and keypad Subtract where practical. Test actual key events on Ubuntu
+and Windows; do not assume the textual label and physical key code are
+interchangeable.
+
+wxAcceleratorTable on the frame is the preferred app-level mapping. Test every
+shortcut while focus is inside wxStyledTextCtrl; some Scintilla key handling
+may consume an event before the frame accelerator table sees it. If necessary,
+add a minimal editor key dispatcher for app commands while preserving native
+Scintilla editing behaviour. Never dispatch one physical key twice.
+
+For Undo/Redo/Cut/Copy/Paste, ensure Scintilla's own key bindings and app-level
+accelerators are aligned. It is acceptable to let the native control handle a
+standard editing command if that is the single path; the menu command must
+invoke the same semantic operation. Do not have both the accelerator table
+and a custom key event handler trigger the same operation.
+
+On config reload, rebuild the wxAcceleratorTable and refresh menu labels only
+after the candidate config and shortcut set have validated successfully.
+
+### 12.3 Find and Find Next
+
+Find opens a simple text-entry dialog. Search from the current insertion
+position. Find Next repeats the previous query. Use Scintilla's built-in
+search APIs and flags. Default to case-insensitive search unless an explicit
+simple case-sensitivity option is implemented. On reaching document end,
+wrap once and report that wrap where useful. If no match exists, do not jump to
+an unrelated position or destroy the current selection.
+
+### 12.4 Go to Line
+
+Accept a 1-based logical line. Validate 1 <= requested_line <= line_count.
+Convert to Scintilla's 0-based line index, move to the start of that logical
+line, and ensure the caret is visible. Invalid/empty input must show a useful
+message and leave the cursor unchanged. Wrapped visual rows do not count as
+separate logical lines.
+
+### 12.5 Font-size actions
+
+Increase/decrease one point per command. Enforce 6..96 points. Update default
+style and line-number style consistently, recalculate global line-height
+spacing and gutter width, and retain the resolved font family. Font changes
+must not edit text, move the cursor, alter undo history, or mark dirty.
+
+### 12.6 Full screen
+
+F11 toggles full screen using wxFrame's documented full-screen API. Ensure
+restoring from full screen restores normal/maximized layout and status-bar
+visibility without losing editor focus or document state. Keep menu visibility
+behaviour simple and documented.
+
+================================================================================
+13. FILE MENU, DIRTY STATE, AND ONE-DOCUMENT WORKFLOW
+================================================================================
+
+Open, New, Save, Save As, Quit, and window-close handling must be reliable.
+
+### New
+
+Create a new untitled empty document only after handling the current document's
+dirty state. Reset undo history and set a clean save point. Clear current path
+only after the user chooses to discard/save and the new document is actually
+created.
+
+### Open
+
+Use wxFileDialog with an appropriate text/all-files filter. Before replacing
+the active document, ask about dirty changes. Do not change the document until
+the selected file has been fully read, validated, and normalized. Cancelling
+file selection or the unsaved prompt leaves everything untouched.
+
+### Save
+
+Save to the current path. If untitled, delegate to Save As. Only mark clean
+after safe replacement succeeds.
+
+### Save As
+
+Use wxFileDialog with overwrite confirmation. Do not change current filename,
+window title, or save point before the file has been successfully written and
+atomically installed.
+
+### Unsaved-change prompt
+
+Before New, Open, Quit, and window close, if modified, offer:
+- Save
+- Discard
+- Cancel
+
+Save proceeds only if the save succeeds. If Save As is cancelled or fails,
+the original action is cancelled. Discard proceeds without saving. Cancel
+leaves the active document untouched.
+
+### Dirty state and title
+
+Use Scintilla GetModify()/SetSavePoint() semantics, not a manually maintained
+boolean alone. Update title on content changes and save-point changes.
+Suggested title:
+
+    wedit — filename.txt
+    wedit — filename.txt [modified]
+    wedit — Untitled
+    wedit — Untitled [modified]
+
+File path must update only after successful load or save-as. Failed file
+operations must not lose the active buffer, filename, undo state, or dirty state.
+
+### File error handling
+
+Show clear, specific errors for missing file, permission denied, invalid UTF-8,
+read/write failure, disk full, invalid path, read-only destination, and atomic
+replacement failure. Do not show success messages for failed operations.
+
+================================================================================
+14. COMMAND-LINE INTERFACE
+================================================================================
+
+Support:
+
+    wedit [FILE ...]
+    wedit --config PATH [FILE ...]
+    wedit --print-config
+    wedit --print-config-paths
+    wedit --help
+    wedit --version
+
+Handle command-line operations before creating the main GUI window whenever
+possible. --print-config, --print-config-paths, --help, and --version must
+print to stdout/stderr as appropriate and exit without opening an empty frame.
+
+Use wxCmdLineParser if it can provide this behaviour cleanly, or use a small
+well-tested pre-GUI argument parser. Avoid depending on wxApp initialization
+for basic text-only CLI output if that would require an X display.
+
+Single-document policy: if multiple file paths are supplied, open the first
+valid requested file only and clearly report that additional paths are not
+supported. Do not silently read/discard paths or pretend multiple files are
+open. Define deterministic behaviour if the first file fails; do not silently
+open a later file unless that fallback is explicitly documented.
+
+--print-config prints all canonical settings and shortcuts, including the
+built-in toggle_block_cursor, generated from the one defaults object.
+--print-config-paths prints ordered config candidates, presence/readable state,
+and active config source.
+--version prints application version and wxWidgets version where available.
+--help lists syntax and options.
+
+================================================================================
+15. TESTABLE CORE DESIGN AND PROJECT ORGANIZATION
+================================================================================
+
+Keep code organized into focused components. The exact names may be adjusted
+for a clear maintainability benefit, but do not build one monolithic frame class.
+
+Recommended project tree:
+
+wedit/
+├── CMakeLists.txt
+├── README.md
+├── config.example.ini
+├── install_deps.sh
+├── package.sh
+├── packaging/
+│   └── wedit.desktop
+├── src/
+│   ├── main.cpp
+│   ├── MainFrame.h
+│   ├── MainFrame.cpp
+│   ├── EditorControl.h
+│   ├── EditorControl.cpp
+│   ├── ConfigManager.h
+│   ├── ConfigManager.cpp
+│   ├── ShortcutParser.h
+│   ├── ShortcutParser.cpp
+│   ├── TextNormalization.h
+│   ├── TextNormalization.cpp
+│   ├── Utf8Utils.h
+│   ├── Utf8Utils.cpp
+│   ├── FileIO.h
+│   ├── FileIO.cpp
+│   ├── ClipboardManager.h
+│   ├── ClipboardManager.cpp
+│   ├── AppActions.h
+│   └── AppActions.cpp
+├── tests/
+│   ├── CMakeLists.txt
+│   ├── test_text_normalization.cpp
+│   ├── test_utf8_utils.cpp
+│   ├── test_config_manager.cpp
+│   ├── test_shortcut_parser.cpp
+│   ├── test_file_io.cpp
+│   └── test_editor_logic.cpp
+└── docs/
+    ├── DESIGN.md
+    └── PORTING_NOTES.md
+
+Component responsibilities:
+
+main.cpp:
+- Pre-GUI CLI parsing, wxApp startup, version, help, print-config, and
+  configuration-path inspection.
+
+MainFrame:
+- wxFrame, menus, status bar, sizers, dialogs, file commands, title, close
+  handling, full-screen mode, and central action dispatch.
+
+EditorControl:
+- wxStyledTextCtrl setup, plain-text styling, margins, caret, wrapping,
+  current-line highlight, font, cursor/status queries, and Scintilla events.
+
+ConfigManager:
+- One canonical defaults object, INI parsing, validation, config path
+  discovery, diagnostics, reload candidate, and print-config serialization.
+
+ShortcutParser:
+- Parse GTK-style accelerator strings; map to wx flags/key codes; detect
+  collisions; provide canonical display labels.
+
+TextNormalization:
+- Standalone CRLF/CR/LF normalization with exact newline preservation.
+
+Utf8Utils:
+- Strict validation, BOM detection/removal, safe conversions, byte-boundary
+  helpers, and user-visible Unicode column counting.
+
+FileIO:
+- Binary file loading, validation, atomic save, path handling, and errors.
+
+ClipboardManager:
+- Plain-text wxClipboard integration, newline-normalized paste, safe cut/copy,
+  and grouped undo handling at the editor boundary.
+
+AppActions:
+- Shared command identifiers and action dispatch semantics used by menu,
+  keyboard, and editor key handlers.
+
+General C++ requirements:
+- C++17 only; no Qt, FLTK, GTK app code, or other GUI toolkit.
+- Use RAII, value types, std::string/std::filesystem where appropriate, and
+  wxString for wxWidgets text/path interfaces.
+- Avoid raw owning pointers. wxWidgets parent-child windows follow wx ownership;
+  document non-window pointer lifetimes explicitly.
+- Avoid dangling callback data and pointers to temporary strings in menu items.
+- Check wxString <-> UTF-8 conversion success.
+- Keep OS-specific file replacement isolated behind a small helper.
+- Avoid unnecessary dependencies.
+- Use const correctness and compiler warnings.
+
+================================================================================
+16. BUILD SYSTEM AND CMAKE REQUIREMENTS
+================================================================================
+
+Use:
+- C++17.
+- wxWidgets 3.2.x.
+- wxStyledTextCtrl / STC component.
+- CMake 3.20 or newer (use the Ubuntu 26.04 packaged version).
+- CTest.
+- Standard C++ library for core helpers.
+- No Qt, FLTK, or direct GTK widget dependencies.
+
+CMake must find wxWidgets and specifically request the components required by
+the program, including core, base, and stc. Verify the component names and
+actual link flags in the installed CMake FindwxWidgets module and wx-config.
+On Unix, CMake's FindwxWidgets uses wx-config. A portable approach is:
+
+    find_package(wxWidgets REQUIRED COMPONENTS core base stc)
+
+Then include the wxWidgets usage requirements using the supported mechanism
+for the project's CMake minimum (e.g. UsewxWidgets / wxWidgets_USE_FILE and
+wxWidgets_INCLUDE_DIRS, wxWidgets_DEFINITIONS, wxWidgets_LIBRARIES). Do not
+assume an imported wxWidgets::wxWidgets target exists on older CMake versions;
+use it only when available. Ensure the STC library is actually linked.
+
+If CMake's module/component naming differs on the installed system, diagnose
+and implement a documented fallback using wx-config, including both compiler
+flags and `wx-config --libs std,stc`. Do not guess library names or manually
+hard-code /usr/lib paths. Prefer the official wx-config output on Ubuntu.
+
+Set CMAKE_CXX_STANDARD 17, required, and disable compiler extensions. Enable
+sensible warnings (e.g. -Wall -Wextra -Wpedantic for GCC/Clang and appropriate
+MSVC warning level). Do not hide warnings with blanket suppressions.
+
+Provide:
+
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --parallel
+    ctest --test-dir build --output-on-failure
+
+Also document a Debug build and an optional install:
+
+    cmake -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug
+    cmake --build build-debug --parallel
+    cmake --install build --prefix "$HOME/.local"
+
+Add proper CMake install rules for the executable, desktop entry, example
+configuration, and documentation. Support DESTDIR, CMAKE_INSTALL_PREFIX, and
+standard packaging staging.
+
+The build must configure-fail with a useful message if wxWidgets core/base/STC
+headers or libraries are missing, or if the minimum supported wxWidgets 3.2
+version cannot be established. Do not silently build with wxTextCtrl as a
+fallback and claim STC support.
+
+================================================================================
+17. UBUNTU 26.04 DEPENDENCY INSTALLER: install_deps.sh
+================================================================================
+
+Create a robust, idempotent Bash script at the project root. It must:
+
+1. Use `#!/usr/bin/env bash` and `set -Eeuo pipefail`.
+2. Detect Ubuntu using /etc/os-release. Ubuntu 26.04 is the primary target.
+   If another distribution/version is detected, print a clear warning and
+   either continue only when explicitly allowed or exit according to a
+   documented policy. Do not run apt on non-Ubuntu systems.
+3. Check whether the caller is root; otherwise use sudo if available. If
+   neither is available, fail with an actionable message.
+4. Run apt-get update.
+5. Install the required packages non-interactively and idempotently:
+
+       build-essential
+       cmake
+       pkg-config
+       libwxgtk3.2-dev
+       zip
+       unzip
+
+6. Include `xvfb`, `xauth`, and `desktop-file-utils` if available/useful for
+   headless GUI testing and desktop-entry validation. These may be documented
+   as test/validation helpers, but do not make them runtime requirements.
+7. Do not install Qt or FLTK. Do not install GTK application development
+   libraries separately unless the selected wxWidgets package genuinely needs
+   them; apt should resolve wxWidgets' runtime/build dependencies.
+8. Verify these commands after installation:
+
+       wx-config --version
+       wx-config --cxxflags
+       wx-config --libs std,stc
+
+   Check that wx-config reports wxWidgets 3.2.x or a later compatible 3.2
+   maintenance release. Check that the STC link query succeeds and returns
+   meaningful linker flags. If not, exit nonzero with a diagnosis.
+9. Print a concise summary and the next build commands.
+
+Use `apt-get install -y` and quote variable expansions. Never run broad
+cleanup commands or remove user packages. Provide clear failure messages.
+
+================================================================================
+18. SOURCE ZIP PACKAGER: package.sh
+================================================================================
+
+Create an executable Bash script at the project root. It must reliably build,
+test, and package the source tree.
+
+Required sequence:
+1. Resolve the script's own project root independent of current working
+   directory.
+2. Check required tools (cmake, a C++ compiler, wx-config, zip, unzip).
+3. Use a clean, dedicated temporary/package build directory. Do not delete
+   arbitrary user directories. If the conventional build/ directory is to be
+   cleaned, only remove the exact project-local path after verifying it is
+   inside the project root; prefer a dedicated `.package-build` directory.
+4. Configure Release with CMake.
+5. Build with parallel jobs.
+6. Run CTest with --output-on-failure.
+7. If GUI tests are configured and `xvfb-run` is available, run them under
+   `xvfb-run -a`; otherwise run headless-safe unit tests and explicitly report
+   GUI tests skipped because no display is available. Never report skipped as
+   passed.
+8. Validate packaging/wedit.desktop with desktop-file-validate when installed.
+9. Build a clean source archive named wedit-source.zip. The archive must
+   include all source files, CMakeLists.txt, tests, documentation,
+   config.example.ini, install_deps.sh, package.sh, and packaging/wedit.desktop.
+10. Exclude build/, build-*/, .package-build/, CMakeFiles/, CMakeCache.txt,
+    cmake_install.cmake, compile_commands.json, *.o, *.a, *.so, executables,
+    .git/, .hg/, .svn/, .idea/, .vscode/, editor swap files, temporary files,
+    logs, and wedit-source.zip itself.
+11. Prefer a deterministic archive layout with one top-level `wedit/`
+    directory. Avoid embedding absolute paths or machine-specific build data.
+12. Verify the result with `unzip -t wedit-source.zip` and inspect its file
+    listing. Fail if the archive is empty, missing required files, or contains
+    build artifacts.
+13. Print the exact archive path, size, and SHA-256 checksum.
+14. Return nonzero on configure, build, test, zip, or verification failure.
+
+The package script must not claim that a downloadable archive was made until
+the archive exists and its ZIP integrity check succeeds. Do not include local
+binary dependencies in the source archive unless a separate, explicitly
+requested binary distribution is created.
+
+================================================================================
+19. LINUX DESKTOP INTEGRATION AND WINDOWS PORTABILITY
+================================================================================
+
+Provide packaging/wedit.desktop with at least:
+
+    [Desktop Entry]
+    Type=Application
+    Name=wedit Text Editor
+    Comment=Lightweight plain-text editor
+    Exec=wedit %F
+    Icon=accessories-text-editor
+    Terminal=false
+    Categories=Utility;TextEditor;
+    MimeType=text/plain;
+
+Use `%F` only because CLI behaviour explicitly handles multiple inputs by
+opening the first and reporting that the rest are unsupported. If this policy
+is changed, adjust Exec appropriately. Install the desktop entry to the
+standard applications directory using GNUInstallDirs/CMake install rules.
+
+Install the executable to `${CMAKE_INSTALL_BINDIR}`. Install
+config.example.ini and docs into `${CMAKE_INSTALL_DATADIR}/wedit` or another
+clearly documented standard location. Do not automatically overwrite a user's
+existing config.ini during installation.
+
+Windows portability:
+- Keep platform-specific file/path code isolated.
+- Use wxWidgets 3.2.x with its STC component built for 64-bit Windows.
+- Document a CMake build path for MSVC (and optionally MinGW if validated).
+- Do not require GTK, FLTK, Qt, or Linux-only tools on Windows.
+- Use Unicode-safe wxString/Windows path APIs.
+- Use a Windows-safe atomic replacement implementation.
+- Keep config discovery under %APPDATA%/wedit.
+- Do not claim the Windows build was tested unless it was actually compiled
+  and exercised with a Windows toolchain.
+
+================================================================================
+20. AUTOMATED TESTS AND ACCEPTANCE CRITERIA
+================================================================================
+
+Use CTest. A small dependency-free C++ test harness is preferred for core
+logic. Do not add a large external test framework unless justified. Keep core
+utilities independent of GUI initialisation wherever possible. wxWidgets/STC
+GUI-specific tests may be a separate executable and run under Xvfb when
+available.
+
+### A. Text normalization
+
+Test:
+- LF remains LF.
+- CRLF becomes one LF.
+- CR becomes LF.
+- Mixed CRLF/CR/LF normalizes correctly.
+- Leading newline preserved.
+- Trailing newline preserved.
+- Consecutive blank lines preserved.
+- Empty input stays empty.
+- Large input is handled without truncation.
+
+### B. UTF-8 utilities
+
+Test:
+- Valid ASCII.
+- Valid multi-byte UTF-8 (e.g. accented Latin, CJK, Indic scripts).
+- Combining characters.
+- Emoji and variation selectors.
+- UTF-8 BOM removal only at the start.
+- Invalid continuation bytes.
+- Truncated multi-byte sequences.
+- Overlong and otherwise invalid encodings.
+- Embedded NUL policy.
+- Character-column counting versus byte length.
+- Position conversions never split code points.
+
+### C. File round trip and atomic save
+
+Test:
+- Empty file.
+- One-line file without trailing newline.
+- File ending with newline.
+- Leading newline.
+- Several blank lines.
+- LF, CRLF, CR, mixed endings.
+- UTF-8 non-ASCII, combining marks, emoji.
+- BOM input and output policy.
+- Invalid UTF-8 rejection leaves active document unchanged.
+- Missing file, permission failure, invalid path.
+- Failed save leaves the original destination intact.
+- Failed Save As does not change filename or clean state.
+- Temporary file cleanup on failure.
+- Successful replacement sets clean state only after commit.
+
+### D. Configuration
+
+Test:
+- Every exact supplied default.
+- Built-in toggle_block_cursor default.
+- Complete config.
+- Partial config.
+- Missing config.
+- Malformed section and malformed key/value lines.
+- Leading/trailing whitespace.
+- Full-line # and ; comments.
+- #RRGGBB values are not treated as comments.
+- Boolean case variations.
+- Duplicate key policy (last wins + diagnostic).
+- Unknown key/section warning.
+- Invalid colour/font/numeric/boolean fallback.
+- NaN, infinity, overflow, trailing junk.
+- Atomic runtime reload.
+- Failed reload preserves live settings.
+- --print-config equals the canonical defaults object exactly.
+- --print-config-paths order and active-source reporting.
+- Reload does not modify text, filename, save point, selection, or undo.
+
+### E. Shortcut parser
+
+Test every supplied shortcut spelling, including:
+- <Primary>n/o/s/q/z/y/x/c/v/f/g/r/w/l/h.
+- <Primary><Shift>s and <Primary><Shift>b.
+- F3 and F11.
+- <Primary>plus and <Primary>minus.
+- Built-in <Primary>b toggle_block_cursor.
+
+Also test:
+- Ctrl mapping on Linux/Windows.
+- Shift modifier.
+- Top-row and keypad plus/minus mappings.
+- Invalid/malformed input fallback.
+- Duplicate binding diagnostics and deterministic resolution.
+- Menu label generation.
+- Rebuild after config reload.
+- Shortcuts while editor has focus.
+- No double-dispatch with Scintilla's built-in bindings.
+
+### F. Editor behaviour
+
+Test:
+- Empty document.
+- Insertion and deletion.
+- Enter at beginning/middle/end.
+- Enter in empty paragraph and repeated blank lines.
+- Enter replacing a selection.
+- UTF-8 insertion and movement.
+- Copy/cut/paste as plain text.
+- CRLF/CR/mixed newline paste.
+- Leading/trailing clipboard newlines.
+- Paste over selection.
+- Multiline paste as one undo action.
+- Undo/redo exact text restoration.
+- Load resets old undo history.
+- Save point and modified-state transitions.
+- Find and Find Next wrap.
+- Go to Line validation.
+- Logical line counting under wrapping.
+
+### G. Gutter and current-line display
+
+Test:
+- 1, 9, 10, 99, 100, 999, and 1000 logical lines.
+- Dynamic line-number margin width.
+- Gutter hidden width is zero/reclaimed.
+- Wrapped rows do not increment logical line numbers.
+- Scrolling and large paste.
+- Font size changes.
+- Resize/full-screen.
+- Current-line toggle and colour.
+- Cursor moves by keyboard and mouse.
+
+### H. Caret and typography
+
+Test:
+- block cursor on/off.
+- caret blink disabled by period zero.
+- configured font resolution and fallback.
+- font size min/max.
+- line_height 1.4 global spacing approximation.
+- recomputation after font size change/reload does not accumulate spacing.
+- zero spacing values.
+- nonzero unsupported paragraph settings produce warnings.
+- Unicode fallback glyphs, combining marks, emoji, wrapped lines, selection,
+  cursor hit-testing, and scroll are not clipped by line metrics.
+
+### I. Layout and border manual verification
+
+Run the GUI and inspect:
+- Normal 900 x 600 window.
+- Minimum dimensions.
+- Maximized and restored windows.
+- Full screen and return.
+- Window resize and high-DPI scaling.
+- Border size zero and 20.
+- Custom border colour.
+- Gutter on/off.
+- Status bar on/off.
+- Wrap on/off.
+- Small and large font.
+- Long documents and long unwrapped lines.
+- Large multiline paste and final-line scrolling.
+
+Verify:
+- No unexpected bottom strip.
+- No border side missing or covered by editor background.
+- No gutter misalignment or overlap.
+- No status bar overlap.
+- No text or Unicode clipping.
+- No lost cursor/selection after configuration reload.
+- No text mutation from visual settings.
+- No crash on file or clipboard failures.
+
+Document which tests are automated and which need manual GUI inspection. Do
+not weaken tests to make them pass. Never report an unrun test as passed.
+
+================================================================================
+21. REQUIRED PROJECT DELIVERABLES
+================================================================================
+
+Create all of the following under the wedit/ directory:
+
+1. Complete compilable C++17 source code for wedit.
+2. CMakeLists.txt with verified wxWidgets core/base/STC integration.
+3. config.example.ini containing every canonical setting and shortcut,
+   preserving the exact supplied defaults plus the documented built-in
+   toggle_block_cursor mapping.
+4. install_deps.sh: executable, idempotent Ubuntu 26.04 dependency installer.
+5. package.sh: executable clean build/test/source ZIP packager.
+6. packaging/wedit.desktop: valid Linux desktop launcher.
+7. Automated tests for normalization, UTF-8, config, shortcuts, file I/O, and
+   editor logic.
+8. README.md containing:
+   - Project description and scope.
+   - wxWidgets 3.2.x and wxStyledTextCtrl/Scintilla architecture.
+   - Ubuntu 26.04 dependencies and install script usage.
+   - Release and Debug build instructions.
+   - Run/install/uninstall guidance.
+   - Command-line options.
+   - Config discovery order and full config reference.
+   - Keyboard shortcuts.
+   - File encoding/newline policy.
+   - Clipboard and undo behaviour.
+   - Known wxWidgets/Scintilla limitations.
+   - Windows build notes.
+   - Troubleshooting.
+9. docs/DESIGN.md explaining:
+   - wxFrame/sizer/menu architecture.
+   - wxStyledTextCtrl and Scintilla document ownership.
+   - UTF-8 byte offsets and Unicode columns.
+   - Newline/BOM handling.
+   - Clipboard pipeline and undo grouping.
+   - Safe-save implementation.
+   - Config parser/defaults/reload.
+   - Accelerator parsing/dispatch.
+   - Gutter/current-line/status behaviour.
+   - Caret and line-height implementation.
+   - Border and DPI-aware geometry.
+10. docs/PORTING_NOTES.md explaining which Slate/gSlate behaviours were
+    retained, adapted, unsupported, or deliberately excluded.
+11. wedit-source.zip, created by package.sh and verified with unzip -t.
+12. A final implementation report with exact files, exact commands, actual
+    build/test/packaging output, archive size/checksum, and unverified items.
+
+Do not merely describe these deliverables. Create the actual files.
+
+================================================================================
+22. IMPLEMENTATION WORKFLOW
+================================================================================
+
+Follow this sequence:
+
+Step 1 — Inspect inputs and environment
+- Inspect all reference files completely.
+- Confirm exact config.ini keys/values.
+- Inspect compiler, CMake, wx-config, installed wxWidgets version, and STC
+  link availability.
+- Inspect wxWidgets 3.2 headers for every API to be used.
+- Record any unavailable tool or dependency honestly.
+
+Step 2 — Define architecture and canonical config
+- Define one Config structure and one defaults factory.
+- Define one action registry and command IDs.
+- Establish a single wxStyledTextCtrl document model.
+- Separate UI, config, UTF-8/newline, clipboard, file I/O, and shortcut logic.
+
+Step 3 — Implement/test core helpers first
+- Strict UTF-8 validation and BOM handling.
+- CRLF/CR-to-LF normalization.
+- Unicode code-point column counting.
+- Config parser/validation/path discovery.
+- Shortcut parser/conflict resolution.
+- Atomic file I/O.
+
+Step 4 — Build main wxWidgets application
+- wxApp startup and CLI handling.
+- wxFrame, menus, sizers, status row, and border container.
+- wxStyledTextCtrl with UTF-8, LF, lexer disabled, and plain text styling.
+- Set up line-number margin, caret line, caret style, caret period, and wrap.
+
+Step 5 — Implement file workflow and dirty state
+- New/Open/Save/Save As/Quit/Close.
+- Unsaved-changes Save/Discard/Cancel.
+- Failure-safe path/title/save-point behaviour.
+- New-file load resets undo history.
+
+Step 6 — Implement editing and clipboard
+- Native Enter behaviour.
+- Plain-text Copy/Cut/Paste.
+- Normalize paste line endings.
+- Group multiline paste as one undo operation.
+- Test Undo/Redo and dirty-state transitions.
+
+Step 7 — Implement menus, shortcuts, and search
+- One action dispatcher.
+- Config-driven wxAcceleratorTable.
+- Ensure shortcuts work with editor focus.
+- Find, Find Next, Go to Line, font size, wrap, toggles, and full screen.
+
+Step 8 — Implement presentation and layout
+- Theme colours, requested/resolved font.
+- Border container and DIP-aware sizing.
+- Dynamic line-number margin width.
+- Current-line background.
+- Status bar.
+- Line-height approximation using supported extra-ascent/descent APIs.
+- Diagnostics for unsupported per-paragraph spacing values.
+
+Step 9 — Implement runtime configuration reload
+- Parse to a temporary candidate.
+- Validate complete candidate.
+- Apply atomically to widgets and shortcut table.
+- Verify no document, dirty, undo, cursor, or selection changes.
+
+Step 10 — Implement installation/packaging
+- CMake install rules.
+- wedit.desktop.
+- install_deps.sh and package.sh.
+- Verify wx-config STC linkage and desktop file.
+
+Step 11 — Run automated tests and GUI checks
+- Configure and build Release.
+- Run CTest.
+- Run GUI tests under Xvfb if available.
+- Run manual display checklist if a graphical session is available.
+- Fix defects rather than weakening tests.
+
+Step 12 — Final review
+- Search for leftover FLTK, Qt, GTK4, and gSlate application architecture
+  references that do not belong in the migration notes.
+- Verify the app is actually wxWidgets and wxStyledTextCtrl based.
+- Review memory management, event bindings, UTF-8, newline, clipboard, undo,
+  atomic saving, config consistency, layout, and platform-specific code.
+- Check there are no TODOs, stubs, truncated files, or dead code.
+
+Step 13 — Package and report
+- Run ./package.sh from a clean state.
+- Verify the ZIP and its expected contents.
+- Provide the project tree, build/test logs, archive path/size/checksum, and
+  limitations. State exactly whether GUI and Windows verification occurred.
+
+================================================================================
+23. KNOWN IMPLEMENTATION RISKS — DO NOT REPEAT THESE DEFECTS
+================================================================================
+
+1. Do not use wxTextCtrl as a shortcut around a missing STC component without
+   reporting that the required editor architecture changed.
+2. Do not enable a syntax lexer or syntax styling; this remains plain text.
+3. Do not assume Scintilla positions are Unicode character indexes; they are
+   byte-oriented document positions.
+4. Do not split a UTF-8 character while computing positions or columns.
+5. Do not confuse visual wrapping with stored LF newlines.
+6. Do not lose leading, repeated, or trailing blank lines.
+7. Do not append a newline automatically on save.
+8. Do not load invalid UTF-8 by silently replacing bytes.
+9. Do not change the active document before a candidate file is fully read,
+   validated, and normalized.
+10. Do not change the current filename before successful load/Save As.
+11. Do not mark clean after a failed save.
+12. Do not truncate an original file on a failed atomic save.
+13. Do not let native paste bypass newline normalization.
+14. Do not make multiline paste several undo operations.
+15. Do not delete selected text if copying to clipboard failed.
+16. Do not leave the previous document in the new document's undo history.
+17. Do not let appearance/config reload affect text, undo, save point, or dirty
+    state.
+18. Do not register duplicate accelerator and editor-key handlers for one key.
+19. Do not let configured shortcut labels drift from actual accelerator keys.
+20. Do not hard-code line-number margin width for only two-digit line counts.
+21. Do not count wrapped visual lines as logical document lines.
+22. Do not create a separate gutter that scrolls independently from Scintilla.
+23. Do not claim pixels_above/pixels_below are per-paragraph features if only
+    global line spacing is available.
+24. Do not implement line_height by changing font size.
+25. Do not accumulate extra ascent/descent on every reload.
+26. Do not treat line_distance as wrapped-only spacing if the chosen API affects
+    every display line.
+27. Do not draw a custom caret or gutter over Scintilla unless required and
+    rigorously tested against selection, hit testing, scrolling, and redraw.
+28. Do not confuse the editor border with the native Ubuntu window frame.
+29. Do not hide layout errors with a fixed bottom spacer.
+30. Do not assume border thickness is the same as text padding or gutter width.
+31. Do not use hard-coded widget coordinates in place of wx sizers.
+32. Do not use GTK4, Qt, FLTK, or platform-specific APIs in the main app.
+33. Do not hard-code /usr/lib library paths or guess wxWidgets link names.
+34. Do not claim STC linkage based only on wxWidgets core/base being found.
+35. Do not delete paths outside the project in install/package scripts.
+36. Do not include build artifacts or the archive inside wedit-source.zip.
+37. Do not claim a build/test/GUI/Windows check passed unless it was run.
+
+================================================================================
+24. FINAL ACCEPTANCE PRIORITIES
+================================================================================
+
+The highest priorities, in order:
+
+1. Deliver a real native wxWidgets application named wedit, using C++17,
+   wxWidgets 3.2.x, and wxStyledTextCtrl/Scintilla.
+2. Target Ubuntu 26.04 and verify the actual wxWidgets STC dependency.
+3. Preserve every supplied config.ini setting and exact initial default.
+4. Preserve UTF-8 text and logical newline structure.
+5. Make Enter, clipboard operations, undo, and redo predictable and testable.
+6. Never lose unsaved user work through a failed/cancelled file operation.
+7. Use native Scintilla line-number, current-line, caret, wrapping, and undo
+   facilities where appropriate.
+8. Keep menu commands, shortcuts, and config reload synchronized.
+9. Keep UI layout, border, gutter, status row, and full-screen behaviour sound.
+10. Clearly report the exact effective behaviour of all inherited spacing keys.
+11. Include install_deps.sh and package.sh and create verified wedit-source.zip.
+12. Provide meaningful tests and honest build/test/GUI/Windows reporting.
+
+Make practical wxWidgets-specific engineering decisions. Prefer documented
+public APIs and robust text/file correctness over clever visual hacks. Preserve
+the small, focused identity of wedit. The final result must be a functioning
+wxWidgets desktop editor with a complete source ZIP, not merely a design
+proposal or code explanation.
+
+END OF MASTER WXWIDGETS DEVELOPMENT PROMPT
+
+================================================================================
+APPENDIX A — REFERENCE CHECKLIST FOR THE IMPLEMENTATION AGENT
+================================================================================
+
+Before using any named method, verify it in the exact wxWidgets headers shipped
+on the target system. The following upstream documentation is a starting point,
+not a substitute for compile-time verification:
+
+- wxWidgets 3.2 documentation: https://docs.wxwidgets.org/3.2/
+- wxStyledTextCtrl documentation: https://docs.wxwidgets.org/3.2/classwx_styled_text_ctrl.html
+  (if the documentation host redirects, use the class reference shipped with
+  the installed wxWidgets 3.2 docs and wx/stc/stc.h).
+- Scintilla documentation: https://www.scintilla.org/ScintillaDoc.html
+- CMake FindwxWidgets: https://cmake.org/cmake/help/latest/module/FindwxWidgets.html
+- Ubuntu package details for libwxgtk3.2-dev:
+  https://packages.ubuntu.com/resolute/amd64/libwxgtk3.2-dev
+
+In particular, verify these details:
+- The `stc` component exists in the installed wx-config output and links.
+- Exact names and event semantics for wxEVT_STC_CHANGE,
+  wxEVT_STC_MODIFIED, and wxEVT_STC_UPDATEUI.
+- Exact names for Scintilla constants and wxStyledTextCtrl wrappers.
+- Whether SetExtraAscent/SetExtraDescent are exposed in the bundled wrapper.
+- Whether TextHeight() provides the correct natural baseline for line metrics.
+- wxString UTF-8 conversion APIs and path conversions on both Linux/Windows.
+- wxAcceleratorTable delivery when focus resides in wxStyledTextCtrl.
+
+Do not resolve uncertain APIs by inventing method names. Inspect headers, write
+small compile probes where useful, and adapt only to documented supported
+interfaces.
+
+================================================================================
+APPENDIX B — SOURCE-ARCHIVE MANIFEST EXPECTATION
+================================================================================
+
+At minimum, wedit-source.zip should contain:
+
+wedit/CMakeLists.txt
+wedit/README.md
+wedit/config.example.ini
+wedit/install_deps.sh
+wedit/package.sh
+wedit/packaging/wedit.desktop
+wedit/src/main.cpp
+wedit/src/MainFrame.h
+wedit/src/MainFrame.cpp
+wedit/src/EditorControl.h
+wedit/src/EditorControl.cpp
+wedit/src/ConfigManager.h
+wedit/src/ConfigManager.cpp
+wedit/src/ShortcutParser.h
+wedit/src/ShortcutParser.cpp
+wedit/src/TextNormalization.h
+wedit/src/TextNormalization.cpp
+wedit/src/Utf8Utils.h
+wedit/src/Utf8Utils.cpp
+wedit/src/FileIO.h
+wedit/src/FileIO.cpp
+wedit/src/ClipboardManager.h
+wedit/src/ClipboardManager.cpp
+wedit/src/AppActions.h
+wedit/src/AppActions.cpp
+wedit/tests/CMakeLists.txt
+wedit/tests/test_text_normalization.cpp
+wedit/tests/test_utf8_utils.cpp
+wedit/tests/test_config_manager.cpp
+wedit/tests/test_shortcut_parser.cpp
+wedit/tests/test_file_io.cpp
+wedit/tests/test_editor_logic.cpp
+wedit/docs/DESIGN.md
+wedit/docs/PORTING_NOTES.md
+
+The implementation may add narrowly justified source files, but must not omit
+any required responsibility or deliverable. Ensure shell scripts are executable
+in the working tree and that their executable mode is retained where the ZIP
+format/tool preserves Unix permissions.
