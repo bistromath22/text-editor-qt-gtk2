@@ -1,0 +1,39 @@
+Hello, ClaudeT !! 
+I want to upadte the leafpad source code . . .  step by step  . . .
+
+it should take the parameters, at command line =>
+1)  -bw or --border-size =>  default 20px
+2)  -bc or --border-color =>  default "#313244"
+3)  -pa or --pixels_above =>   default "4px"
+4)  -pb or --pixels_below =>   default "4px"
+5)  -ct or --cursor-type =>  1=caret, 2=block ; default 2
+6)  -cb or cursor-blink =>  1=no-blink, 2=blink ; default 1
+7)  -bg or background-color => default "#1e1e2e"
+
+First let's apply these updates only
+and set it up to compile via cmake 
+
+Can you create the cleaf.zip source code zip file
+
+
+=================================================
+
+awesome !! this worked !!
+
+also one problem =>
+when cursor type =1 
+./build/leafpad -ct 1 notes.txt
+it works fine
+
+when cursor type =2
+the block cursor does not move up or down
+or home arrow   . . .
+
+{ just an idea =>
+So, after keypress, the cursor type can be changed to one
+and after having handled the keypress, the cursor type can be changed
+to block ??  in case it needs to be changed } <= will this work ??
+
+=================================================
+
+
